@@ -1,0 +1,24 @@
+# Dependencies
+node_modules/
+*/node_modules/
+**/node_modules/
+
+# Production builds
+dist/
+*/dist/
+**/dist/
+
+# Environment variables & secrets
+.env*
+**/.env*
+!.env.example
+!**/.env.example
+
+# Vercel & Deployment
+.vercel/
+
+# Logs & temporary files
+*.log
+.DS_Store
+Thumbs.db
+.playwright-mcp/

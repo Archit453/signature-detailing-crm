@@ -1,0 +1,17 @@
+name: CRM & Supabase 24/7 Keep-Alive
+
+on:
+  schedule:
+    # Runs every 30 minutes to keep Supabase & Vercel warm and active
+    - cron: '*/30 * * * *'
+  workflow_dispatch:
+
+jobs:
+  keepalive-ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Signature Detailing Health & Database
+        run: |
+          echo "Pinging Signature Detailing CRM production endpoint..."
+          curl -sL --fail "https://signaturedetailing-five.vercel.app/api/health" | jq .
+
