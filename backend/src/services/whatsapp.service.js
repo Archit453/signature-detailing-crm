@@ -150,11 +150,14 @@ export function invalidateConversationCache(phone) {
   }
 }
 
-export async function findOrCreateWhatsAppConversation(customerId, phone) {
+export async function findOrCreateWhatsAppConversation(customerId, phone, customerName = null) {
   const cleanPhone = String(phone).replace(/[^0-9]/g, '');
 
   const cached = conversationCache.get(cleanPhone);
   if (cached && cached.expiresAt > Date.now()) {
+    if (customerName && !cached.conversation.customer_name) {
+      cached.conversation.customer_name = customerName;
+    }
     return cached.conversation;
   }
 
@@ -169,6 +172,7 @@ export async function findOrCreateWhatsAppConversation(customerId, phone) {
         channel: 'whatsapp',
         channel_user_id: cleanPhone,
         customer_phone: cleanPhone,
+        customer_name: customerName || null,
         bot_active: true,
         bot_paused_reason: null,
         bot_step: 'awaiting_service',
@@ -181,6 +185,8 @@ export async function findOrCreateWhatsAppConversation(customerId, phone) {
         updated_at: new Date().toISOString(),
       };
       inMemoryConversations.push(conv);
+    } else if (customerName && !conv.customer_name) {
+      conv.customer_name = customerName;
     }
     conversationCache.set(cleanPhone, { conversation: conv, expiresAt: Date.now() + CONV_CACHE_TTL });
     return conv;
@@ -204,9 +210,19 @@ export async function findOrCreateWhatsAppConversation(customerId, phone) {
         phone: existing.lead.customer_phone,
       };
       cacheCustomer(existing.customer, cleanPhone);
+      if (!existing.customer_name && existing.lead.customer_name) {
+        existing.customer_name = existing.lead.customer_name;
+        supabase.from('conversations').update({ customer_name: existing.lead.customer_name }).eq('id', existing.id).catch(() => {});
+      }
     } else if (existing.customer) {
       cacheCustomer(existing.customer, cleanPhone);
     }
+
+    if (customerName && !existing.customer_name) {
+      existing.customer_name = customerName;
+      supabase.from('conversations').update({ customer_name: customerName }).eq('id', existing.id).catch(() => {});
+    }
+
     conversationCache.set(cleanPhone, { conversation: existing, expiresAt: Date.now() + CONV_CACHE_TTL });
     return existing;
   }
@@ -215,13 +231,29 @@ export async function findOrCreateWhatsAppConversation(customerId, phone) {
     channel: 'whatsapp',
     channel_user_id: cleanPhone,
     customer_phone: cleanPhone,
+    customer_name: customerName || null,
     bot_active: true,
     bot_step: 'awaiting_service',
   };
 
   if (!caps.isConsolidated4Table) {
-    const cust = await findOrCreateCustomer({ phone: cleanPhone });
+    const cust = await findOrCreateCustomer({ phone: cleanPhone, name: customerName });
     insertData.customer_id = cust.id;
+  } else {
+    // If consolidated, attempt lookup by phone in leads to auto-link
+    try {
+      const { data: matchedLead } = await supabase
+        .from('leads')
+        .select('id, customer_name')
+        .or(`customer_phone.eq.+${cleanPhone},customer_phone.eq.${cleanPhone},customer_phone.ilike.%${cleanPhone.slice(-10)}`)
+        .maybeSingle();
+      if (matchedLead) {
+        insertData.lead_id = matchedLead.id;
+        if (!insertData.customer_name && matchedLead.customer_name) {
+          insertData.customer_name = matchedLead.customer_name;
+        }
+      }
+    } catch (_) {}
   }
 
   const { data: created, error } = await supabase

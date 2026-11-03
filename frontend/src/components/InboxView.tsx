@@ -258,6 +258,16 @@ export const InboxView: React.FC<InboxViewProps> = ({ initialCustomerId }) => {
                   ? `${conv.customer!.vehicles![0].make} ${conv.customer!.vehicles![0].model}`
                   : null;
 
+                const displayName = (conv.customer?.name && conv.customer.name !== 'Customer')
+                  ? conv.customer.name
+                  : (isWA && conv.channel_user_id
+                      ? `+91 ${conv.channel_user_id.replace(/\D/g, '').slice(-10)}`
+                      : (conv.channel === 'instagram' ? 'Instagram User' : 'Customer'));
+
+                // Clean initial for avatar
+                const isPhoneTitle = displayName.startsWith('+');
+                const avatarLetter = isPhoneTitle ? '📱' : displayName[0]?.toUpperCase() || 'C';
+
                 return (
                   <div
                     key={conv.id}
@@ -277,7 +287,7 @@ export const InboxView: React.FC<InboxViewProps> = ({ initialCustomerId }) => {
                               : 'bg-[#16171A] border-[#282930] text-[#CDD8FC]'
                           }`}
                         >
-                          {(conv.customer?.name || 'C')[0]}
+                          {avatarLetter}
                         </div>
                         <div
                           className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full flex items-center justify-center shadow-xs ${
@@ -295,7 +305,7 @@ export const InboxView: React.FC<InboxViewProps> = ({ initialCustomerId }) => {
                               isLight ? 'text-slate-900' : 'text-white'
                             }`}
                           >
-                            {conv.customer?.name || 'Customer'}
+                            {displayName}
                           </h4>
                           <span
                             className={`text-[10px] ml-2 whitespace-nowrap ${
@@ -428,10 +438,14 @@ export const InboxView: React.FC<InboxViewProps> = ({ initialCustomerId }) => {
               </button>
               <div>
                 <div className="flex items-center space-x-2">
-                  <h3 className={`text-sm font-semibold truncate max-w-[160px] ${
+                  <h3 className={`text-sm font-semibold truncate max-w-[200px] ${
                     isLight ? 'text-slate-900' : 'text-white'
                   }`}>
-                    {selectedConversation.customer?.name || 'Customer'}
+                    {(selectedConversation.customer?.name && selectedConversation.customer.name !== 'Customer')
+                      ? selectedConversation.customer.name
+                      : (selectedConversation.channel === 'whatsapp' && selectedConversation.channel_user_id
+                          ? `+91 ${selectedConversation.channel_user_id.replace(/\D/g, '').slice(-10)}`
+                          : (selectedConversation.channel === 'instagram' ? 'Instagram User' : 'Customer'))}
                   </h3>
                   <span
                     className={`text-[9px] px-1.5 py-0.5 rounded-full font-semibold uppercase ${

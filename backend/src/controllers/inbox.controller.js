@@ -15,6 +15,7 @@ export async function listConversations(req, res) {
     return successResponse(res, [], 'Inbox online');
   }
 
+  // 1. Fetch conversations
   let query = supabase
     .from('conversations')
     .select('*, lead:leads(*)')
@@ -25,62 +26,89 @@ export async function listConversations(req, res) {
     query = query.eq('channel', channel);
   }
 
-  const { data, error } = await query;
+  let { data, error } = await query;
   if (error) {
-    // Fallback if lead join isn't configured in PostgREST
     const fallback = await supabase
       .from('conversations')
       .select('*')
       .order('last_message_at', { ascending: false })
       .limit(100);
     if (fallback.error) throw new ApiError(500, `Failed to load conversations: ${fallback.error.message}`);
-    
-    let leadsByPhone = new Map();
-    try {
-      const { data: leads } = await supabase.from('leads').select('*').limit(200);
-      (leads || []).forEach((l) => {
-        if (l.customer_phone) {
-          const clean = String(l.customer_phone).replace(/[^0-9]/g, '');
-          leadsByPhone.set(clean, l);
-          if (clean.length >= 10) leadsByPhone.set(clean.slice(-10), l);
-        }
-      });
-    } catch (_) {}
-
-    const formattedFallback = (fallback.data || []).map((conv) => {
-      const phoneClean = String(conv.channel_user_id || conv.customer_phone || '').replace(/[^0-9]/g, '');
-      const matchedLead = leadsByPhone.get(phoneClean) || leadsByPhone.get(phoneClean.slice(-10));
-      const resolvedName = (conv.customer_name && conv.customer_name !== 'Customer')
-        ? conv.customer_name
-        : (matchedLead?.customer_name || 'Customer');
-      const resolvedPhone = conv.customer_phone || matchedLead?.customer_phone || conv.channel_user_id;
-      const vehicles = matchedLead?.vehicle_info && Object.keys(matchedLead.vehicle_info).length > 0
-        ? [matchedLead.vehicle_info]
-        : [];
-
-      return {
-        ...conv,
-        customer_name: resolvedName,
-        customer: {
-          id: matchedLead?.id || conv.lead_id || conv.id,
-          name: resolvedName,
-          phone: resolvedPhone,
-          vehicles,
-        },
-      };
-    });
-    return successResponse(res, formattedFallback);
+    data = fallback.data || [];
   }
 
+  // 2. Pre-fetch leads for robust cross-channel customer matching
+  let leadsByPhone = new Map();
+  let leadsByIg = new Map();
+  try {
+    const { data: leads } = await supabase.from('leads').select('*').limit(300);
+    (leads || []).forEach((l) => {
+      if (l.customer_phone) {
+        const clean = String(l.customer_phone).replace(/[^0-9]/g, '');
+        leadsByPhone.set(clean, l);
+        if (clean.length >= 10) leadsByPhone.set(clean.slice(-10), l);
+      }
+      if (l.instagram_id) leadsByIg.set(String(l.instagram_id), l);
+      if (l.instagram_username) leadsByIg.set(String(l.instagram_username).toLowerCase().replace(/^@/, ''), l);
+    });
+  } catch (leadFetchErr) {
+    console.warn('[Inbox leads lookup note]', leadFetchErr.message);
+  }
+
+  // 3. Format conversations with high-fidelity customer resolution
   const formatted = (data || []).map((conv) => {
-    const lead = conv.lead;
-    const vehicles = lead?.vehicle_info && Object.keys(lead.vehicle_info).length > 0 ? [lead.vehicle_info] : [];
+    const phoneClean = String(conv.channel_user_id || conv.customer_phone || '').replace(/[^0-9]/g, '');
+    const matchedLead = conv.lead ||
+      leadsByPhone.get(phoneClean) ||
+      (phoneClean.length >= 10 ? leadsByPhone.get(phoneClean.slice(-10)) : null) ||
+      leadsByIg.get(String(conv.channel_user_id));
+
+    // Extract name from review request text if available
+    let extractedNameFromMsg = null;
+    const allText = `${conv.last_message_preview || ''} ${(conv.recent_messages || []).map((m) => m.content || '').join(' ')}`;
+    const reviewMatch = allText.match(/Hi\s+([A-Za-z~]+)\s*👋/);
+    if (reviewMatch) extractedNameFromMsg = reviewMatch[1];
+
+    let resolvedName = null;
+    if (conv.customer_name && conv.customer_name !== 'Customer') {
+      resolvedName = conv.customer_name;
+    } else if (matchedLead?.customer_name && matchedLead.customer_name !== 'Customer') {
+      resolvedName = matchedLead.customer_name;
+    } else if (extractedNameFromMsg) {
+      resolvedName = extractedNameFromMsg;
+    } else if (conv.channel === 'whatsapp' && phoneClean.length >= 10) {
+      const ten = phoneClean.slice(-10);
+      resolvedName = `+91 ${ten.slice(0, 5)} ${ten.slice(5)}`;
+    } else if (conv.channel === 'instagram') {
+      resolvedName = conv.customer_name || 'Instagram User';
+    } else {
+      resolvedName = 'Customer';
+    }
+
+    const resolvedPhone = conv.customer_phone || matchedLead?.customer_phone || (conv.channel === 'whatsapp' ? conv.channel_user_id : null);
+    const vehicles = matchedLead?.vehicle_info && Object.keys(matchedLead.vehicle_info).length > 0
+      ? [matchedLead.vehicle_info]
+      : [];
+
+    // Background sync to persist name onto conversation row if missing
+    if (!conv.customer_name && resolvedName && resolvedName !== 'Customer') {
+      supabase
+        .from('conversations')
+        .update({
+          customer_name: resolvedName,
+          lead_id: matchedLead?.id || conv.lead_id || null,
+        })
+        .eq('id', conv.id)
+        .then(() => {}, () => {});
+    }
+
     return {
       ...conv,
+      customer_name: resolvedName,
       customer: {
-        id: conv.lead_id || conv.id,
-        name: conv.customer_name || lead?.customer_name || 'Customer',
-        phone: conv.customer_phone || lead?.customer_phone || conv.channel_user_id,
+        id: matchedLead?.id || conv.lead_id || conv.id,
+        name: resolvedName,
+        phone: resolvedPhone,
         vehicles,
       },
     };

@@ -385,6 +385,27 @@ export async function createLead({
       if (!updateError && updated) {
         const formatted = formatLeadRow(updated);
         formatted.isReInquiry = true;
+
+        // Auto-link matching conversation with lead details
+        if (finalPhone || finalIgId) {
+          (async () => {
+            try {
+              const cleanP = finalPhone ? finalPhone.replace(/\D/g, '') : null;
+              if (cleanP) {
+                await supabase.from('conversations').update({
+                  lead_id: updated.id,
+                  customer_name: finalName,
+                }).or(`channel_user_id.eq.${cleanP},channel_user_id.eq.${cleanP.slice(-10)}`);
+              } else if (finalIgId) {
+                await supabase.from('conversations').update({
+                  lead_id: updated.id,
+                  customer_name: finalName,
+                }).eq('channel_user_id', String(finalIgId));
+              }
+            } catch (_) {}
+          })();
+        }
+
         notifyOwnerLeadUpdate({
           lead: formatted,
           customer: formatted.customer,
@@ -420,6 +441,27 @@ export async function createLead({
     if (insertError) throw insertError;
 
     const formatted = formatLeadRow(created);
+
+    // Auto-link matching conversation with lead details
+    if (finalPhone || finalIgId) {
+      (async () => {
+        try {
+          const cleanP = finalPhone ? finalPhone.replace(/\D/g, '') : null;
+          if (cleanP) {
+            await supabase.from('conversations').update({
+              lead_id: created.id,
+              customer_name: finalName,
+            }).or(`channel_user_id.eq.${cleanP},channel_user_id.eq.${cleanP.slice(-10)}`);
+          } else if (finalIgId) {
+            await supabase.from('conversations').update({
+              lead_id: created.id,
+              customer_name: finalName,
+            }).eq('channel_user_id', String(finalIgId));
+          }
+        } catch (_) {}
+      })();
+    }
+
     notifyOwnerNewLead(formatted, formatted.customer).catch((err) => console.warn('[Owner Notification Error]', err.message));
     return formatted;
   }

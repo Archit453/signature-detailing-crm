@@ -7,6 +7,7 @@ import { createLead, deleteLead, notifyOwnerNewLead } from '../src/services/lead
 import { findOrCreateCustomer } from '../src/services/customer.service.js';
 import { config } from '../src/config/env.js';
 import { STUDIO_CONFIG, getOwnerPhone, getStudioPhone } from '../src/config/studio.config.js';
+import { supabase, isSupabaseConfigured } from '../src/config/supabase.js';
 
 let passed = 0;
 let failed = 0;
@@ -33,6 +34,7 @@ async function runTests() {
   console.log(`📡 Test server running on ${baseUrl}\n`);
 
   const createdLeadIds = [];
+  let igUserId = null;
 
   try {
     // 1. Root & Frontend Static SPA Serving Test
@@ -378,8 +380,28 @@ async function runTests() {
     }
 
     try {
-      await supabase.from('conversations').delete().or(`channel_user_id.like.919820%,customer_name.eq.Rohit Sharma,channel_user_id.eq.${igUserId}`);
-    } catch (e) {}
+      const { data: testConvs } = await supabase.from('conversations').select('id, channel_user_id, customer_name');
+      const toDelete = (testConvs || []).filter((c) => {
+        const u = c.channel_user_id || '';
+        return (
+          u.startsWith('test_') ||
+          u.startsWith('audit_') ||
+          u.startsWith('ig_test_') ||
+          u.startsWith('919820') ||
+          u.startsWith('919830') ||
+          u.startsWith('9198610') ||
+          u.startsWith('9198619') ||
+          u.startsWith('919876543210') ||
+          (igUserId && u === igUserId) ||
+          c.customer_name === 'Rohit Sharma'
+        );
+      }).map((c) => c.id);
+      if (toDelete.length > 0) {
+        await supabase.from('conversations').delete().in('id', toDelete);
+      }
+    } catch (e) {
+      console.warn('[Test conversations cleanup note]', e.message);
+    }
 
     await new Promise((resolve) => server.close(resolve));
     console.log('\n------------------------------------------------------');

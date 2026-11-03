@@ -289,7 +289,7 @@ export async function sendLeadReview(req, res) {
   const metaResult = await sendMetaWhatsAppMessage(cleanPhone, messageText);
 
   // Log in conversation & customer timeline
-  const conv = await findOrCreateWhatsAppConversation(lead.customer_id, cleanPhone);
+  const conv = await findOrCreateWhatsAppConversation(lead.customer_id, cleanPhone, firstName);
   await logWhatsAppMessage({
     conversationId: conv.id,
     direction: 'outbound',
@@ -297,6 +297,19 @@ export async function sendLeadReview(req, res) {
     messageType: 'text',
     content: messageText,
   });
+
+  // Ensure conversation row has the customer name and lead linked
+  if (conv?.id && isSupabaseConfigured) {
+    supabase
+      .from('conversations')
+      .update({
+        customer_name: firstName,
+        lead_id: lead.id,
+        customer_phone: cleanPhone,
+      })
+      .eq('id', conv.id)
+      .catch(() => {});
+  }
 
   if (lead.customer_id) {
     try {
