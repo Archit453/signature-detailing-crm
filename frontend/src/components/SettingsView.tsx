@@ -343,9 +343,10 @@ export const SettingsView: React.FC = () => {
                   <div className={`flex items-center justify-between p-3 rounded-lg border ${
                     isLight ? 'bg-slate-50 border-slate-200' : 'bg-slate-950/50 border-slate-800'
                   }`}>
-                    <code className="text-xs font-semibold text-slate-700 dark:text-slate-300">
-                      Set a unique token in Integrations
+                    <code className="text-xs font-mono font-semibold text-emerald-600 dark:text-emerald-400 select-all">
+                      signature_wa_verify_secret
                     </code>
+                    <CopyButton id="wa-token" text="signature_wa_verify_secret" />
                   </div>
                 </div>
               </div>
@@ -380,9 +381,10 @@ export const SettingsView: React.FC = () => {
                   <div className={`flex items-center justify-between p-3 rounded-lg border ${
                     isLight ? 'bg-slate-50 border-slate-200' : 'bg-slate-950/50 border-slate-800'
                   }`}>
-                    <code className="text-xs font-semibold text-slate-700 dark:text-slate-300">
-                      Set a unique token in Integrations
+                    <code className="text-xs font-mono font-semibold text-pink-600 dark:text-pink-400 select-all">
+                      signature_ig_verify_secret
                     </code>
+                    <CopyButton id="ig-token" text="signature_ig_verify_secret" />
                   </div>
                 </div>
               </div>

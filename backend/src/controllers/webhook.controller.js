@@ -20,6 +20,16 @@ export async function verifyWhatsAppWebhook(req, res) {
   const integrations = await getSetting('integrations');
   const configuredVerifyToken = integrations?.whatsapp?.verify_token || config.whatsapp.verifyToken;
 
+  // Informative status for direct browser visits
+  if (!mode && !token && !challenge) {
+    return res.status(200).json({
+      status: 'online',
+      service: 'WhatsApp Cloud API Webhook Handshake',
+      verify_token: configuredVerifyToken || 'signature_wa_verify_secret',
+      instructions: 'Configure this URL in Meta Developer Portal > WhatsApp > Configuration with the verify token above.'
+    });
+  }
+
   if (mode === 'subscribe' && configuredVerifyToken && token === configuredVerifyToken) {
     console.log('[WhatsApp Webhook] Verification challenge verified successfully.');
     return res.status(200).send(challenge);
@@ -138,6 +148,16 @@ export async function verifyInstagramWebhook(req, res) {
 
   const integrations = await getSetting('integrations');
   const configuredVerifyToken = integrations?.instagram?.verify_token || config.instagram.verifyToken;
+
+  // Informative status for direct browser visits
+  if (!mode && !token && !challenge) {
+    return res.status(200).json({
+      status: 'online',
+      service: 'Instagram Graph API Webhook Handshake',
+      verify_token: configuredVerifyToken || 'signature_ig_verify_secret',
+      instructions: 'Configure this URL in Meta Developer Portal > Instagram > Webhooks with the verify token above.'
+    });
+  }
 
   if (mode === 'subscribe' && configuredVerifyToken && token === configuredVerifyToken) {
     console.log('[Instagram Webhook] Verification challenge verified successfully.');
