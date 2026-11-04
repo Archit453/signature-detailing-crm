@@ -25,6 +25,24 @@ if (config.nodeEnv !== 'test') {
   app.use(morgan('dev'));
 }
 
+// Legal and Compliance Pages (Meta App Review Requirements)
+const publicDir = path.resolve(__dirname, '../../frontend/public');
+const distDir = path.resolve(__dirname, '../../frontend/dist');
+
+const sendLegalFile = (fileName, res) => {
+  const distFile = path.join(distDir, fileName);
+  const publicFile = path.join(publicDir, fileName);
+  res.sendFile(distFile, (err) => {
+    if (err) res.sendFile(publicFile, (err2) => {
+      if (err2) res.status(404).send('Document not found');
+    });
+  });
+};
+
+app.get(['/privacy', '/api/privacy'], (req, res) => sendLegalFile('privacy.html', res));
+app.get(['/terms', '/api/terms'], (req, res) => sendLegalFile('terms.html', res));
+app.get(['/data-deletion', '/api/data-deletion'], (req, res) => sendLegalFile('data-deletion.html', res));
+
 // API Routes
 app.use('/api', apiRouter);
 

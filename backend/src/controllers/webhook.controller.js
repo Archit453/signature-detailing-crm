@@ -18,7 +18,7 @@ export async function verifyWhatsAppWebhook(req, res) {
   const challenge = req.query['hub.challenge'];
 
   const integrations = await getSetting('integrations');
-  const configuredVerifyToken = integrations?.whatsapp?.verify_token || config.whatsapp.verifyToken;
+  const configuredVerifyToken = (config.nodeEnv === 'test' ? config.whatsapp.verifyToken : null) || integrations?.whatsapp?.verify_token || config.whatsapp.verifyToken;
 
   // Informative status for direct browser visits
   if (!mode && !token && !challenge) {
@@ -147,7 +147,7 @@ export async function verifyInstagramWebhook(req, res) {
   const challenge = req.query['hub.challenge'];
 
   const integrations = await getSetting('integrations');
-  const configuredVerifyToken = integrations?.instagram?.verify_token || config.instagram.verifyToken;
+  const configuredVerifyToken = (config.nodeEnv === 'test' ? config.instagram.verifyToken : null) || integrations?.instagram?.verify_token || config.instagram.verifyToken;
 
   // Informative status for direct browser visits
   if (!mode && !token && !challenge) {

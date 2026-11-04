@@ -11,6 +11,18 @@
   },
   "rewrites": [
     {
+      "source": "/privacy",
+      "destination": { "service": "backend" }
+    },
+    {
+      "source": "/terms",
+      "destination": { "service": "backend" }
+    },
+    {
+      "source": "/data-deletion",
+      "destination": { "service": "backend" }
+    },
+    {
       "source": "/api/(.*)",
       "destination": { "service": "backend" }
     },
