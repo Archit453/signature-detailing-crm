@@ -20,7 +20,7 @@ export async function verifyWhatsAppWebhook(req, res) {
   const integrations = await getSetting('integrations');
   const configuredVerifyToken = integrations?.whatsapp?.verify_token || config.whatsapp.verifyToken;
 
-  if (mode === 'subscribe' && token === configuredVerifyToken) {
+  if (mode === 'subscribe' && configuredVerifyToken && token === configuredVerifyToken) {
     console.log('[WhatsApp Webhook] Verification challenge verified successfully.');
     return res.status(200).send(challenge);
   }
@@ -139,7 +139,7 @@ export async function verifyInstagramWebhook(req, res) {
   const integrations = await getSetting('integrations');
   const configuredVerifyToken = integrations?.instagram?.verify_token || config.instagram.verifyToken;
 
-  if (mode === 'subscribe' && token === configuredVerifyToken) {
+  if (mode === 'subscribe' && configuredVerifyToken && token === configuredVerifyToken) {
     console.log('[Instagram Webhook] Verification challenge verified successfully.');
     return res.status(200).send(challenge);
   }
@@ -214,4 +214,3 @@ export async function handleInstagramWebhook(req, res) {
     }
   }
 }
-

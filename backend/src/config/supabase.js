@@ -30,7 +30,7 @@ export async function getTableCapabilities() {
     leadsHasActivities: true,
     leadsHasCustomerName: true,
     conversationsHasCustomerPhone: true,
-    conversationsHasMessages: true,
+
     conversationsHasMessages: false,
     conversationsHasRecentMessages: true,
   };
@@ -41,7 +41,7 @@ export async function getTableCapabilities() {
       leadsHasActivities: true,
       leadsHasCustomerName: true,
       conversationsHasCustomerPhone: true,
-      conversationsHasMessages: true,
+  
       conversationsHasMessages: false,
       conversationsHasRecentMessages: true,
     };
@@ -67,7 +67,7 @@ export async function getTableCapabilities() {
           leadsHasActivities: 'activities' in leadProps,
           leadsHasCustomerName: 'customer_name' in leadProps,
           conversationsHasCustomerPhone: 'customer_phone' in convProps,
-          conversationsHasMessages: 'messages' in convProps || 'recent_messages' in convProps,
+
           conversationsHasMessages: 'messages' in convProps,
           conversationsHasRecentMessages: 'recent_messages' in convProps,
         };

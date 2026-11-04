@@ -1,3 +1,4 @@
+import { testCredentials } from '../backend/tests/test-env.mjs';
 import { chromium } from 'playwright';
 import http from 'http';
 import app from '../backend/src/app.js';
@@ -32,6 +33,7 @@ async function run() {
     }
   });
 
+  let createdLeadId = null;
   try {
     // 2. Navigate to Dashboard
     await page.goto(baseUrl, { waitUntil: 'networkidle' });
@@ -40,7 +42,7 @@ async function run() {
     // 3. Authenticate if Login Modal appears
     const pinInput = page.locator('input[type="password"]');
     if (await pinInput.count() > 0) {
-      await pinInput.fill('signature2025');
+      await pinInput.fill(testCredentials.studioPasscode);
       await page.keyboard.press('Enter');
       await page.waitForTimeout(500);
       console.log('  ✅ PASS: Studio authentication completed');
@@ -49,6 +51,29 @@ async function run() {
     // 4. Verify Dashboard Header
     await page.waitForSelector('text=Studio Operations', { timeout: 10000 });
     console.log('  ✅ PASS: Studio Operations header rendered');
+
+    // Seed test lead for verifying UI formatting, WhatsApp buttons, and search filtering
+    try {
+      const seedRes = await fetch(`${baseUrl}/api/leads`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: 'Audit Client',
+          phone: '9820112345',
+          service: '✨ Ceramic Coating',
+          vehicle: 'BMW M3 (Isle of Man Green)',
+          source: 'whatsapp',
+        }),
+      });
+      if (seedRes.ok) {
+        const seedJson = await seedRes.json();
+        createdLeadId = seedJson.data?.id;
+        await page.reload({ waitUntil: 'networkidle' });
+        await page.waitForTimeout(600);
+      }
+    } catch (e) {
+      console.warn('Could not seed audit lead:', e.message);
+    }
 
     // 5. Verify Leads Table & Phone formatting
     const phoneCells = page.locator('td.whitespace-nowrap font-mono, td a[href^="tel:"]');
@@ -148,6 +173,11 @@ async function run() {
     console.log('🏁 All UI & Frontend Audits PASSED Successfully!');
     console.log('------------------------------------------------------\n');
   } finally {
+    if (createdLeadId) {
+      try {
+        await fetch(`${baseUrl}/api/leads/${createdLeadId}`, { method: 'DELETE' });
+      } catch (e) {}
+    }
     await browser.close();
     server.close();
   }

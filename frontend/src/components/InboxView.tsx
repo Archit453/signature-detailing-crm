@@ -155,7 +155,7 @@ export const InboxView: React.FC<InboxViewProps> = ({ initialCustomerId }) => {
     { label: '📅 Slot Confirmed', text: 'Your studio detailing bay slot has been reserved. Looking forward to welcoming your vehicle! ✨' },
     { label: '🚗 Car Ready', text: 'Your vehicle detailing is complete and inspected! Ready for showroom delivery. 🏎️✨' },
     { label: '🌐 Website Link', text: 'Visit our official website to view our transformations and gallery: https://signaturedetailing.in' },
-    { label: '🌐 Website Link', text: 'Visit our official website to explore our packages & gallery: https://signature-detailing.pages.dev/' },
+    { label: '🌐 Website Link', text: 'Visit our official website to explore our packages & gallery: https://signature-detailing-landing-page.signaturedetailing-bbsr.workers.dev/' },
   ];
 
 

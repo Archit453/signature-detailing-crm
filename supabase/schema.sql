@@ -200,7 +200,7 @@ VALUES
 ('s-2', '✨ Ceramic Coating', 'ceramic', '9H/10H deep gloss nano ceramic shield', 'Extreme hydrophobic protection, candy gloss, and multi-year chemical resistance.', true, 2),
 ('s-3', '🚘 Paint Correction', 'correction', 'Multi-stage swirl & scratch elimination', 'Rotary and dual-action polish to restore deep optical clarity and showroom finish.', true, 3),
 ('s-4', '🧼 Interior Detailing', 'interior', 'Deep cabin steam clean & leather hygiene', 'Complete extraction, antimicrobial steam treatment, leather conditioning, and odor removal.', true, 4),
-('s-5', '🏎️ Full Detail Package', 'full_detail', 'Comprehensive interior & exterior transformation', 'Bumper-to-bumper deep cleansing, decontamination, engine bay detail, and 1-year sealant.', true, 5)
+('s-5', '💎 Graphene Coating', 'graphene', '10H+ ultra-slick graphene matrix protection', 'Advanced graphene oxide technology offering superior heat dissipation, anti-water spotting, and extreme durability.', true, 5)
 ON CONFLICT (short_code) DO UPDATE
 SET name = EXCLUDED.name,
     tagline = EXCLUDED.tagline,
@@ -211,47 +211,47 @@ SET name = EXCLUDED.name,
 -- Seed Dynamic Studio Settings (General info, Bot scripts, Review templates)
 INSERT INTO public.studio_settings (key, value)
 VALUES
-('general', '{
-    "studio_name": "Signature Detailing",
-    "owner_phone": "+91 7008457284",
-    "phone": "+91 7008457284",
-    "owner_phone": "+91 98612 01770",
-    "phone": "+91 98612 01770",
-    "email": "contact@signaturedetailing.in",
-    "address": "Studio 4, Detailing Bay Road, Automobile Hub",
-    "website_url": "https://signaturedetailing-five.vercel.app",
-    "google_maps_link": "https://maps.app.goo.gl/1HKNXFRRtMJSfPqy5"
-    "address": "Plot no - 55, Pahala, Before Utkal Mahindra Service, Bhubaneswar, Odisha 752101",
-    "website_url": "https://signature-detailing.pages.dev/",
-    "google_maps_link": "https://maps.app.goo.gl/TP4S4MommkGLpAzP7"
-}'::jsonb),
-('bot_messages', '{
-    "welcome_text": "Welcome to Signature Detailing 🚗✨\n\nWhich premium service are you interested in today?",
-    "phone_prompt_ig": "Please share your 10-digit mobile number so our detailing specialist can reach out.",
-    "phone_confirm_wa": "We have your contact number as {{phone}}. Is this the best number to reach you?",
-    "phone_confirm_ig": "Thanks! We have your contact number as {{phone}}. Is this correct?",
-    "phone_invalid": "That does not look like a valid phone number. Please enter your 10-digit mobile number.",
-    "completion_text": "Thank you! Our detailing specialist will call you shortly to discuss your {{service}} requirements and schedule your appointment. 🚗✨",
-    "comment_public_reply": "Hi @{{username}}! Thanks for reaching out. We just sent you a DM with our detailing packages. Please check your message requests! 🚗✨",
-    "comment_private_dm": "Hi @{{username}}! Thanks for your interest in our work 🚗✨ Which service can we help you with?"
-}'::jsonb),
-('reviews', '{
-    "enabled": true,
-    "review_link": "https://search.google.com/local/writereview?placeid=ChIJey82fSsLGToRc9YiRRlQJ2Q",
-    "template": "Hi {{customer_name}} 👋 Thank you for choosing Signature Detailing. We hope you loved the service on your {{vehicle_name}}. If you have a minute, we would really appreciate a review:\n⭐ {{review_link}}\n\nThank you for your trust. - Signature Detailing"
-}'::jsonb),
-('integrations', '{
-    "whatsapp": {
-        "phone_number_id": "1344182455438369",
-        "token": "",
-        "verify_token": "signature_wa_verify_secret"
-    },
-    "instagram": {
-        "page_access_token": "",
-        "verify_token": "signature_ig_verify_secret",
-        "page_id": "1044542855126226"
-    }
-}'::jsonb)
+('general', jsonb_build_object(
+    'studio_name', 'Signature Detailing',
+    'owner_phone', '+91 8456869931',
+    'phone', '+91 98612 01770',
+    'email', 'signaturedetailing.bbsr@gmail.com',
+    'address', 'Plot no - 55, Pahala, Before Utkal Mahindra Service, Bhubaneswar, Odisha 752101',
+    'website_url', 'https://signature-detailing-landing-page.signaturedetailing-bbsr.workers.dev/',
+    'google_maps_link', 'https://maps.app.goo.gl/TP4S4MommkGLpAzP7'
+)),
+('bot_messages', jsonb_build_object(
+    'welcome_text', 'Welcome to Signature Detailing 🚗✨
+
+Which premium service are you interested in today?',
+    'phone_prompt_ig', 'Please share your 10-digit mobile number so our detailing specialist can reach out.',
+    'phone_confirm_wa', 'We have your contact number as {{phone}}. Is this the best number to reach you?',
+    'phone_confirm_ig', 'Thanks! We have your contact number as {{phone}}. Is this correct?',
+    'phone_invalid', 'That does not look like a valid phone number. Please enter your 10-digit mobile number.',
+    'completion_text', 'Thank you! Our detailing specialist will call you shortly to discuss your {{service}} requirements and schedule your appointment. 🚗✨',
+    'comment_public_reply', 'Hi @{{username}}! Thanks for reaching out. We just sent you a DM with our detailing packages. Please check your message requests! 🚗✨',
+    'comment_private_dm', 'Hi @{{username}}! Thanks for your interest in our work 🚗✨ Which service can we help you with?'
+)),
+('reviews', jsonb_build_object(
+    'enabled', true,
+    'review_link', 'https://search.google.com/local/writereview?placeid=ChIJey82fSsLGToRc9YiRRlQJ2Q',
+    'template', 'Hi {{customer_name}} 👋 Thank you for choosing Signature Detailing. We hope you loved the service on your {{vehicle_name}}. If you have a minute, we would really appreciate a review:
+⭐ {{review_link}}
+
+Thank you for your trust. - Signature Detailing'
+)),
+('integrations', jsonb_build_object(
+    'whatsapp', jsonb_build_object(
+        'phone_number_id', '1344182455438369',
+        'token', '',
+        'verify_token', ''
+    ),
+    'instagram', jsonb_build_object(
+        'page_access_token', '',
+        'verify_token', '',
+        'page_id', '1044542855126226'
+    )
+))
 ON CONFLICT (key) DO UPDATE
 SET value = CASE 
     WHEN studio_settings.key = 'integrations' AND studio_settings.value IS NOT NULL AND (studio_settings.value->'whatsapp'->>'phone_number_id') = '1344182455438369'

@@ -3,7 +3,6 @@
 A bespoke, mobile-first CRM and omni-channel automation platform engineered exclusively for **Signature Detailing** (car detailing studio in India).
 
 - **Live Production URL**: [https://signaturedetailing-five.vercel.app](https://signaturedetailing-five.vercel.app)
-- **Studio Passcode**: `signature2025`
 - **API Health Endpoint**: [https://signaturedetailing-five.vercel.app/api/health](https://signaturedetailing-five.vercel.app/api/health)
 
 ---
@@ -11,8 +10,7 @@ A bespoke, mobile-first CRM and omni-channel automation platform engineered excl
 ## 🔐 Studio Access & Security
 
 The CRM terminal is protected by a studio passcode gate to keep customer dossiers, phone numbers, and leads secure:
-- **Default Studio Passcode**: `signature2025`
-- **Custom Configuration**: Configured via `STUDIO_PASSCODE` in `.env` / Vercel Environment Variables.
+- **Required Configuration**: Set a unique `STUDIO_PASSCODE` in `.env` / Vercel Environment Variables. There is no default passcode.
 - **Lock Terminal**: Click **"Lock Terminal"** in the sidebar (or top bar on mobile) to immediately lock the terminal when stepping away.
 
 ---
@@ -132,9 +130,9 @@ SUPABASE_SERVICE_ROLE_KEY=your-supabase-service-role-key
 
 Configure these in Meta Developer Portal (**WhatsApp** > **Configuration** / **Instagram** > **Webhooks**):
 - **WhatsApp Callback URL**: `https://signaturedetailing-five.vercel.app/api/webhooks/whatsapp`
-- **WhatsApp Verify Token**: Configured in Settings (`signature_wa_verify_secret`)
+- **WhatsApp Verify Token**: Set a unique token in Integrations settings and use the same value in Meta.
 - **Instagram Callback URL**: `https://signaturedetailing-five.vercel.app/api/webhooks/instagram`
-- **Instagram Verify Token**: Configured in Settings (`signature_ig_verify_secret`)
+- **Instagram Verify Token**: Set a unique token in Integrations settings and use the same value in Meta.
 
 ---
 

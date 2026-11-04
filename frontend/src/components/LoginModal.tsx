@@ -36,13 +36,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({ onSuccess }) => {
         setErrorMsg(res?.message || 'Incorrect studio passcode. Please try again.');
       }
     } catch {
-      // Fallback for offline mode
-      if (clean === 'signature2025' || clean === '1234') {
-        localStorage.setItem('signature_crm_auth', 'true');
-        onSuccess();
-      } else {
-        setErrorMsg('Incorrect studio passcode. Please try again.');
-      }
+      setErrorMsg('Unable to verify the passcode. Please try again.');
     } finally {
       setIsLoading(false);
     }
@@ -94,7 +88,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({ onSuccess }) => {
                   setPasscode(e.target.value);
                   if (errorMsg) setErrorMsg('');
                 }}
-                placeholder="Enter passcode (e.g. signature2025)"
+                placeholder="Enter studio passcode"
                 autoFocus
                 className={`w-full pl-10 pr-11 py-3 rounded-2xl border text-sm font-medium transition-all outline-none ${
                   isLight
@@ -131,14 +125,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({ onSuccess }) => {
           </button>
         </form>
 
-        <div className={`mt-6 text-center text-xs ${isLight ? 'text-slate-400' : 'text-zinc-500'}`}>
-          <span>Default Studio Passcode: </span>
-          <code className="px-1.5 py-0.5 rounded bg-black/10 dark:bg-white/10 text-xs font-mono font-bold text-[#5E81F4]">
-            signature2025
-          </code>
-        </div>
       </div>
     </div>
   );
 };
-

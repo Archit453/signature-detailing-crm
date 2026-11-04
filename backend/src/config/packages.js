@@ -32,8 +32,8 @@ export const STUDIO_PACKAGES = [
   },
   {
     id: 's-5',
-    name: 'Full Detail Package',
-    short_code: 'full_detail',
+    name: 'Graphene Coating',
+    short_code: 'graphene',
     is_active: true,
     order_index: 5,
   },

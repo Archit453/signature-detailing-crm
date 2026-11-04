@@ -345,6 +345,13 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     });
   }, [leads, searchQuery, statusFilter, serviceFilter, sourceFilter]);
 
+  const hasActiveFilters = Boolean(
+    searchQuery.trim() ||
+    statusFilter !== 'all' ||
+    serviceFilter !== 'all' ||
+    sourceFilter !== 'all'
+  );
+
   // Export Filtered Leads & Vehicle Details to CSV
   const handleExportCSV = () => {
     if (!filteredLeads || filteredLeads.length === 0) {
@@ -928,7 +935,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                   </div>
                 );
               })
-            ) : leads.length === 0 ? (
+            ) : (leads.length === 0 && !hasActiveFilters) ? (
               <div className={`p-8 text-center rounded-3xl ${isLight ? 'bg-white border-slate-200 shadow-sm' : 'bg-[#1C1D21] border-white/[0.08]'} border flex flex-col items-center justify-center space-y-3 py-12`}>
                 <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-[#5E81F4]/20 to-[#CDD8FC]/20 text-[#5E81F4] flex items-center justify-center shadow-inner">
                   <Sparkles className="w-6 h-6" />
@@ -951,9 +958,9 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               </div>
             ) : (
               <div className={`p-8 text-center rounded-2xl ${isLight ? 'bg-white border-slate-200 text-slate-600 shadow-sm' : 'bg-[#1C1D21] border-white/[0.08] text-[#8E92A0]'} border`}>
-                <p className="text-sm">No inquiries match your current filters.</p>
-                <p className="text-sm font-medium">No inquiries match your current filters.</p>
-                <p className={`text-sm font-semibold ${isLight ? 'text-slate-800' : 'text-white'}`}>No inquiries match your current filters.</p>
+
+
+
                 <p className={`text-sm font-semibold ${isLight ? 'text-slate-800' : 'text-white'}`}>
                   No inquiries match your current filters.
                 </p>
@@ -1226,7 +1233,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                         </tr>
                       );
                     })
-                  ) : leads.length === 0 ? (
+                  ) : (leads.length === 0 && !hasActiveFilters) ? (
                     <tr>
                       <td colSpan={7} className="py-16 text-center">
                         <div className="flex flex-col items-center justify-center space-y-3 max-w-md mx-auto">
@@ -1254,9 +1261,9 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                   ) : (
                     <tr>
                       <td colSpan={7} className={`py-14 text-center ${isLight ? 'text-slate-500' : 'text-[#8E92A0]'}`}>
-                        <p className="text-sm">No inquiries match your current filters.</p>
-                        <p className="text-sm font-medium">No inquiries match your current filters.</p>
-                        <p className={`text-sm font-semibold ${isLight ? 'text-slate-800' : 'text-white'}`}>No inquiries match your current filters.</p>
+        
+        
+        
                         <p className={`text-sm font-semibold ${isLight ? 'text-slate-800' : 'text-white'}`}>
                           No inquiries match your current filters.
                         </p>

@@ -14,7 +14,7 @@ const server = app.listen(port, async () => {
     console.error('Boot test failed:', err);
     process.exit(1);
   } finally {
-    server.close(() => process.exit(0));
+    server.close();
   }
 });
 

@@ -1,3 +1,4 @@
+import { testCredentials } from './test-env.mjs';
 import http from 'http';
 import app from '../src/app.js';
 import { validateAndFormatPhone } from '../src/utils/phoneValidator.js';
@@ -51,7 +52,10 @@ async function runTests() {
     assert(healthRes.status === 200, 'GET /api/health returns HTTP 200');
     assert(healthJson.status === 'online', 'System status is online');
     assert(healthJson.system === 'Signature Detailing CRM API', 'System identity verified');
-    assert(healthJson.database === 'connected', 'Supabase database keep-alive query verified');
+    assert(
+      isSupabaseConfigured ? healthJson.database === 'connected' : ['connected', 'unconfigured'].includes(healthJson.database),
+      `Supabase database keep-alive query verified (${healthJson.database})`
+    );
     assert(healthJson.keepAlive === 'active', 'Supabase anti-pausing heartbeat is active');
 
     // 3. Studio Services & Packages
@@ -288,13 +292,28 @@ async function runTests() {
     });
     assert(cust2.id === cust1.id, 'Customer deduplication: Repeated submission preserves exact customer record');
 
-    // 8. Webhook Security & Coexistence Handshake
-    console.log('\n▶ [8/9] Webhook Security & Coexistence Handshake:');
-    const waVerifyRes = await fetch(`${baseUrl}/api/webhooks/whatsapp?hub.mode=subscribe&hub.verify_token=signature_wa_verify_secret&hub.challenge=test_challenge_12345`);
+    // 8. Authentication & Webhook Security
+    console.log('\n▶ [8/9] Authentication & Webhook Security:');
+    const invalidAuthRes = await fetch(`${baseUrl}/api/auth/verify`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ passcode: 'incorrect-test-passcode' }),
+    });
+    assert(invalidAuthRes.status === 401, 'Authentication rejects an incorrect studio passcode');
+
+    const validAuthRes = await fetch(`${baseUrl}/api/auth/verify`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ passcode: testCredentials.studioPasscode }),
+    });
+    const validAuthJson = await validAuthRes.json();
+    assert(validAuthRes.status === 200 && validAuthJson.success, 'Authentication accepts the configured studio passcode');
+
+    const waVerifyRes = await fetch(`${baseUrl}/api/webhooks/whatsapp?hub.mode=subscribe&hub.verify_token=${testCredentials.whatsappVerifyToken}&hub.challenge=test_challenge_12345`);
     const waVerifyText = await waVerifyRes.text();
     assert(waVerifyRes.status === 200 && waVerifyText === 'test_challenge_12345', 'WhatsApp webhook GET handshake returns hub.challenge');
 
-    const igVerifyRes = await fetch(`${baseUrl}/api/webhooks/instagram?hub.mode=subscribe&hub.verify_token=signature_ig_verify_secret&hub.challenge=ig_challenge_67890`);
+    const igVerifyRes = await fetch(`${baseUrl}/api/webhooks/instagram?hub.mode=subscribe&hub.verify_token=${testCredentials.instagramVerifyToken}&hub.challenge=ig_challenge_67890`);
     const igVerifyText = await igVerifyRes.text();
     assert(igVerifyRes.status === 200 && igVerifyText === 'ig_challenge_67890', 'Instagram webhook GET handshake returns hub.challenge');
 

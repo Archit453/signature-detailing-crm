@@ -1,3 +1,4 @@
+import { testCredentials } from '../backend/tests/test-env.mjs';
 import { chromium } from 'playwright';
 import http from 'http';
 import app from '../backend/src/app.js';
@@ -21,7 +22,7 @@ async function run() {
     // Handle Login Modal
     const pinInput = page.locator('input[type="password"]');
     if (await pinInput.count() > 0) {
-      await pinInput.fill('signature2025');
+      await pinInput.fill(testCredentials.studioPasscode);
       await page.keyboard.press('Enter');
       await page.waitForTimeout(800);
     }
@@ -41,4 +42,3 @@ async function run() {
 }
 
 run().catch(console.error);
-

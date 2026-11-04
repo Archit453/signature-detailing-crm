@@ -12,11 +12,15 @@ const router = Router();
 // Simple Studio Authentication Endpoint
 router.post('/auth/verify', (req, res) => {
   const { passcode } = req.body || {};
-  const expectedPasscode = config.auth?.passcode || 'signature2025';
+  const expectedPasscode = config.auth.passcode;
+  if (!expectedPasscode) {
+    return res.status(503).json({ success: false, message: 'Studio passcode is not configured' });
+  }
+
   if (!passcode || String(passcode).trim() !== String(expectedPasscode).trim()) {
     return res.status(401).json({ success: false, message: 'Invalid studio passcode' });
   }
-  return res.status(200).json({ success: true, token: 'signature_authenticated' });
+  return res.status(200).json({ success: true });
 });
 
 // Health check & Supabase keep-alive ping endpoint (Used by Vercel cron & uptime monitors)

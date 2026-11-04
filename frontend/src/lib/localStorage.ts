@@ -1,4 +1,4 @@
-﻿import type { Customer, Lead, LeadStatus, PipelineKPIs, StudioService } from '../types';
+import type { Customer, Lead, LeadStatus, PipelineKPIs, StudioService } from '../types';
 
 const STORAGE_KEYS = {
   LEADS: 'signature_crm_leads',
@@ -47,10 +47,10 @@ const DEFAULT_SERVICES: StudioService[] = [
   },
   {
     id: 's-5',
-    name: '🏎️ Full Detail Package',
-    short_code: 'full_detail',
-    tagline: 'Comprehensive interior & exterior transformation',
-    description: 'Bumper-to-bumper deep cleansing, decontamination, engine bay detail, and 1-year sealant.',
+    name: '💎 Graphene Coating',
+    short_code: 'graphene',
+    tagline: '10H+ ultra-slick graphene matrix protection',
+    description: 'Advanced graphene oxide technology offering superior heat dissipation, anti-water spotting, and extreme durability.',
     is_active: true,
     order_index: 5,
   },

@@ -7,7 +7,7 @@ import { config } from './env.js';
 //
 // Available placeholders (automatically filled in by the bot):
 //   {{service}}      - Selected detailing package (e.g. "✨ Ceramic Coating")
-//   {{phone}}        - Customer phone number (e.g. "+91 70084 57284")
+//   {{phone}}        - Customer phone number (e.g. "+91 84568 69931")
 //   {{studioPhone}}  - Studio helpline (e.g. "+91 98612 01770")
 //   {{studioName}}   - Studio name (e.g. "Signature Detailing")
 //   {{address}}      - Studio address
@@ -114,9 +114,9 @@ export function formatMessage(keyOrTemplate, data = {}) {
   let template = BOT_MESSAGES[keyOrTemplate] || keyOrTemplate || '';
   if (typeof template !== 'string') return '';
 
-  const defaultWebsite = config.studio?.websiteUrl || 'https://signature-detailing.pages.dev/';
+  const defaultWebsite = config.studio?.websiteUrl || 'https://signature-detailing-landing-page.signaturedetailing-bbsr.workers.dev/';
   const defaultStudioPhone = config.studio?.phone || '+91 98612 01770';
-  const defaultOwnerPhone = config.studio?.ownerPhone || '+91 70084 57284';
+  const defaultOwnerPhone = config.studio?.ownerPhone || '+91 84568 69931';
   const defaultStudioName = config.studio?.name || 'Signature Detailing';
   const defaultAddress = config.studio?.address || 'Plot no - 55, Pahala, Before Utkal Mahindra Service, Bhubaneswar, Odisha 752101';
   const defaultMaps = config.studio?.googleMapsLink || 'https://maps.app.goo.gl/TP4S4MommkGLpAzP7';

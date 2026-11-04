@@ -385,10 +385,7 @@ export const api = {
       const data = await res.json();
       return data;
     } catch {
-      if (passcode.trim() === 'signature2025' || passcode.trim() === '1234') {
-        return { success: true };
-      }
-      return { success: false, message: 'Invalid studio passcode' };
+      return { success: false, message: 'Unable to reach the authentication service' };
     }
   },
 };

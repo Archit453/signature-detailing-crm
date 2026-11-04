@@ -29,7 +29,7 @@ export async function getIntegrations(req, res) {
   const masked = {
     whatsapp: {
       phone_number_id: integrations?.whatsapp?.phone_number_id || '',
-      verify_token: integrations?.whatsapp?.verify_token || 'signature_wa_verify_secret',
+      verify_token: integrations?.whatsapp?.verify_token || '',
       has_token: Boolean(integrations?.whatsapp?.token),
       token_preview: integrations?.whatsapp?.token
         ? `${integrations.whatsapp.token.slice(0, 8)}...${integrations.whatsapp.token.slice(-4)}`
@@ -37,7 +37,7 @@ export async function getIntegrations(req, res) {
     },
     instagram: {
       page_id: integrations?.instagram?.page_id || '',
-      verify_token: integrations?.instagram?.verify_token || 'signature_ig_verify_secret',
+      verify_token: integrations?.instagram?.verify_token || '',
       has_token: Boolean(integrations?.instagram?.page_access_token),
       token_preview: integrations?.instagram?.page_access_token
         ? `${integrations.instagram.page_access_token.slice(0, 8)}...${integrations.instagram.page_access_token.slice(-4)}`
@@ -56,12 +56,12 @@ export async function saveIntegrations(req, res) {
     whatsapp: {
       phone_number_id: whatsapp.phone_number_id !== undefined ? whatsapp.phone_number_id : current.whatsapp?.phone_number_id,
       token: whatsapp.token ? whatsapp.token : current.whatsapp?.token,
-      verify_token: whatsapp.verify_token || current.whatsapp?.verify_token || 'signature_wa_verify_secret',
+      verify_token: whatsapp.verify_token || current.whatsapp?.verify_token || '',
     },
     instagram: {
       page_id: instagram.page_id !== undefined ? instagram.page_id : current.instagram?.page_id,
       page_access_token: instagram.page_access_token ? instagram.page_access_token : current.instagram?.page_access_token,
-      verify_token: instagram.verify_token || current.instagram?.verify_token || 'signature_ig_verify_secret',
+      verify_token: instagram.verify_token || current.instagram?.verify_token || '',
     },
   };
 
@@ -86,5 +86,4 @@ export async function pruneMessagesHandler(req, res) {
   const result = await pruneOldMessages(Number(days) || 30);
   return successResponse(res, result, `Cleaned up messages older than ${days} days`);
 }
-
 

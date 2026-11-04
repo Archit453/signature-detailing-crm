@@ -89,7 +89,7 @@ export async function sendInstagramLocationCard(recipientId, {
   studioName = 'Signature Detailing',
   address = 'Plot no - 55, Pahala, Before Utkal Mahindra Service, Bhubaneswar',
   phone = '+91 98612 01770',
-  websiteUrl = 'https://signature-detailing.pages.dev/',
+  websiteUrl = 'https://signature-detailing-landing-page.signaturedetailing-bbsr.workers.dev/',
   mapsUrl = 'https://maps.app.goo.gl/TP4S4MommkGLpAzP7',
 } = {}) {
   const cleanAddress = String(address).slice(0, 50);
@@ -106,7 +106,7 @@ export async function sendInstagramLocationCard(recipientId, {
         {
           type: 'web_url',
           title: '🌐 Visit Website',
-          url: websiteUrl || 'https://signature-detailing.pages.dev/',
+          url: websiteUrl || 'https://signature-detailing-landing-page.signaturedetailing-bbsr.workers.dev/',
         },
       ],
     },
@@ -118,7 +118,7 @@ export async function sendInstagramLocationCard(recipientId, {
 /**
  * Dispatches an interactive Studio Website Generic Template Card with clickable web_url button
  */
-export async function sendInstagramWebsiteCard(recipientId, websiteUrl = 'https://signature-detailing.pages.dev/') {
+export async function sendInstagramWebsiteCard(recipientId, websiteUrl = 'https://signature-detailing-landing-page.signaturedetailing-bbsr.workers.dev/') {
   const elements = [
     {
       title: '🌐 Signature Detailing Official',
@@ -127,7 +127,7 @@ export async function sendInstagramWebsiteCard(recipientId, websiteUrl = 'https:
         {
           type: 'web_url',
           title: '🌐 Visit Website',
-          url: websiteUrl || 'https://signature-detailing.pages.dev/',
+          url: websiteUrl || 'https://signature-detailing-landing-page.signaturedetailing-bbsr.workers.dev/',
         },
       ],
     },

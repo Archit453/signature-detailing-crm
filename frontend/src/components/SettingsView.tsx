@@ -228,7 +228,7 @@ export const SettingsView: React.FC = () => {
                   </div>
                   <div>
                     <div className="text-xs text-slate-400 font-medium mb-0.5">Website URL</div>
-                    <div className="font-semibold text-sm text-emerald-500">signature-detailing.pages.dev</div>
+                    <div className="font-semibold text-sm text-emerald-500">signature-detailing-landing-page.signaturedetailing-bbsr.workers.dev</div>
                   </div>
                 </div>
               </div>
@@ -337,10 +337,9 @@ export const SettingsView: React.FC = () => {
                   <div className={`flex items-center justify-between p-3 rounded-lg border ${
                     isLight ? 'bg-slate-50 border-slate-200' : 'bg-slate-950/50 border-slate-800'
                   }`}>
-                    <code className="text-xs font-semibold text-slate-700 dark:text-slate-300 select-all">
-                      signature_wa_verify_secret
+                    <code className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                      Set a unique token in Integrations
                     </code>
-                    <CopyButton id="wa-token" text="signature_wa_verify_secret" />
                   </div>
                 </div>
               </div>
@@ -375,10 +374,9 @@ export const SettingsView: React.FC = () => {
                   <div className={`flex items-center justify-between p-3 rounded-lg border ${
                     isLight ? 'bg-slate-50 border-slate-200' : 'bg-slate-950/50 border-slate-800'
                   }`}>
-                    <code className="text-xs font-semibold text-slate-700 dark:text-slate-300 select-all">
-                      signature_ig_verify_secret
+                    <code className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                      Set a unique token in Integrations
                     </code>
-                    <CopyButton id="ig-token" text="signature_ig_verify_secret" />
                   </div>
                 </div>
               </div>
