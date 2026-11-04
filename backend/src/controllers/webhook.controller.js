@@ -182,9 +182,25 @@ export async function handleInstagramWebhook(req, res) {
     for (const entry of body.entry || []) {
       const entryAccountId = entry.id ? String(entry.id) : null;
 
-      // 1. Direct Messages & Button Postbacks
+      // 1. Collect Direct Messages & Button Postbacks from entry.messaging & entry.changes
+      const messagingEvents = [];
       if (Array.isArray(entry.messaging)) {
-        for (const event of entry.messaging) {
+        messagingEvents.push(...entry.messaging);
+      }
+      if (Array.isArray(entry.changes)) {
+        for (const change of entry.changes) {
+          if (change.field === 'messages' || change.field === 'messaging') {
+            if (Array.isArray(change.value?.messaging)) {
+              messagingEvents.push(...change.value.messaging);
+            } else if (change.value && (change.value.sender || change.value.message)) {
+              messagingEvents.push(change.value);
+            }
+          }
+        }
+      }
+
+      if (messagingEvents.length > 0) {
+        for (const event of messagingEvents) {
           const senderId = event.sender?.id;
           if (!senderId) continue;
 
@@ -212,6 +228,7 @@ export async function handleInstagramWebhook(req, res) {
               rawText,
               buttonPayload,
               metaMessageId,
+              accountId: entryAccountId,
             });
           }
         }

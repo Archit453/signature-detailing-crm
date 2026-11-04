@@ -55,12 +55,17 @@ export async function sendInstagramOutboundMessage(recipientId, text, options = 
 
   try {
     const isIGToken = token.startsWith('IGAA') || token.startsWith('IGA');
+    const targetAccountId = options.accountId || integrations?.instagram?.page_id || config.instagram.pageId;
+    const accountSegment = (targetAccountId && targetAccountId !== '1044542855126226' && /^\d+$/.test(targetAccountId))
+      ? targetAccountId
+      : 'me';
+
     const baseUrl = isIGToken
       ? 'https://graph.instagram.com/v21.0/me/messages'
-      : 'https://graph.facebook.com/v21.0/me/messages';
+      : `https://graph.facebook.com/v21.0/${accountSegment}/messages`;
 
     const url = `${baseUrl}?access_token=${encodeURIComponent(token)}`;
-    const response = await fetch(url, {
+    let response = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -69,9 +74,34 @@ export async function sendInstagramOutboundMessage(recipientId, text, options = 
       }),
     });
 
-    const data = await response.json();
+    let data = await response.json();
+
+    // Fallback: If template was rejected by Meta, retry with plain text + Quick Replies
+    if (!response.ok && messageObj.attachment) {
+      console.warn('[Meta Instagram Template Rejected, retrying with Quick Replies]:', data.error?.message);
+      const fallbackObj = {
+        text: String(text || 'Welcome to Signature Detailing. Please select a service:').slice(0, 1000),
+      };
+      if (Array.isArray(options.buttons) && options.buttons.length > 0) {
+        fallbackObj.quick_replies = options.buttons.slice(0, 13).map((b) => ({
+          content_type: 'text',
+          title: String(b.title || '').slice(0, 20),
+          payload: String(b.payload || b.id || ''),
+        }));
+      }
+      response = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          recipient: { id: cleanId },
+          message: fallbackObj,
+        }),
+      });
+      data = await response.json();
+    }
+
     if (!response.ok) {
-      console.warn('[Meta Instagram API Warning]', data);
+      console.error(`[Meta Instagram API Error ${response.status} (${data.error?.code})]:`, data.error?.message);
       return { simulated: true, error: data.error };
     }
     return { success: true, data };

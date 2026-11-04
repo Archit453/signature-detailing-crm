@@ -276,6 +276,7 @@ export async function processBotMessage({
   buttonPayload = null,
   profileName = null,
   metaMessageId = null,
+  accountId = null,
 }) {
   const cleanInput = (buttonPayload || rawText || '').trim();
   const lowerInput = cleanInput.toLowerCase();
