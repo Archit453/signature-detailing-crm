@@ -378,6 +378,27 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       'Inquiry Date & Time'
     ];
 
+    const escapePhoneCSV = (phone: unknown) => {
+      if (!phone) return '""';
+      const raw = String(phone).trim();
+      if (!raw) return '""';
+
+      let formatted = raw;
+      const digits = raw.replace(/\D/g, '');
+      if (digits.length === 10) {
+        formatted = `+91 ${digits.slice(0, 5)} ${digits.slice(5)}`;
+      } else if (digits.length === 12 && digits.startsWith('91')) {
+        const core = digits.slice(2);
+        formatted = `+91 ${core.slice(0, 5)} ${core.slice(5)}`;
+      }
+
+      // Prepending ="..." forces Excel, Google Sheets, and spreadsheet applications
+      // to treat the cell as an explicit text formula. This completely stops Excel
+      // from converting long phone numbers to scientific notation (e.g. 9.18457E+11)
+      // and guarantees the leading '+' and spacing remain intact.
+      return `"=""${formatted.replace(/"/g, '""')}"""`;
+    };
+
     const escapeCSV = (str: unknown) => {
       if (str === null || str === undefined) return '""';
       const val = String(str).replace(/"/g, '""');
@@ -389,7 +410,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       return [
         escapeCSV(lead.id),
         escapeCSV(lead.customer?.name || ''),
-        escapeCSV(lead.customer?.phone || ''),
+        escapePhoneCSV(lead.customer?.phone || ''),
         escapeCSV(lead.customer?.email || ''),
         escapeCSV(lead.customer?.instagram_username || ''),
         escapeCSV(lead.service_name || ''),
