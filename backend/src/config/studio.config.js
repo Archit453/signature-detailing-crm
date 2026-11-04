@@ -8,7 +8,7 @@ export const STUDIO_CONFIG = {
   general: {
     studio_name: config.studio?.name || 'Signature Detailing',
     owner_phone: process.env.OWNER_PHONE || config.studio?.ownerPhone || '+91 84568 69931',
-    phone: config.studio?.phone || '+91 98612 01770',
+    phone: config.studio?.phone || '+91 84568 69931',
     email: config.studio?.email || 'signaturedetailing.bbsr@gmail.com',
     address: config.studio?.address || 'Plot no - 55, Pahala, Before Utkal Mahindra Service, Bhubaneswar, Odisha 752101',
     website_url: config.studio?.websiteUrl || 'https://signature-detailing-landing-page.signaturedetailing-bbsr.workers.dev/',
@@ -89,7 +89,7 @@ export function getStudioAddress() {
  * Resolves the studio contact phone directly from STUDIO_CONFIG
  */
 export function getStudioPhone() {
-  return config.studio?.phone || STUDIO_CONFIG?.general?.phone || '+91 98612 01770';
+  return config.studio?.phone || STUDIO_CONFIG?.general?.phone || '+91 84568 69931';
 }
 
 /**

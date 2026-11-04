@@ -88,7 +88,7 @@ export async function sendInstagramOutboundMessage(recipientId, text, options = 
 export async function sendInstagramLocationCard(recipientId, {
   studioName = 'Signature Detailing',
   address = 'Plot no - 55, Pahala, Before Utkal Mahindra Service, Bhubaneswar',
-  phone = '+91 98612 01770',
+  phone = '+91 84568 69931',
   websiteUrl = 'https://signature-detailing-landing-page.signaturedetailing-bbsr.workers.dev/',
   mapsUrl = 'https://maps.app.goo.gl/TP4S4MommkGLpAzP7',
 } = {}) {

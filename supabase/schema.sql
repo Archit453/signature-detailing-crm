@@ -214,7 +214,7 @@ VALUES
 ('general', jsonb_build_object(
     'studio_name', 'Signature Detailing',
     'owner_phone', '+91 8456869931',
-    'phone', '+91 98612 01770',
+    'phone', '+91 8456869931',
     'email', 'signaturedetailing.bbsr@gmail.com',
     'address', 'Plot no - 55, Pahala, Before Utkal Mahindra Service, Bhubaneswar, Odisha 752101',
     'website_url', 'https://signature-detailing-landing-page.signaturedetailing-bbsr.workers.dev/',

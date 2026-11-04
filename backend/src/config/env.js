@@ -41,7 +41,7 @@ export const config = {
 
   studio: {
     name: (process.env.STUDIO_NAME || 'Signature Detailing').trim(),
-    phone: (process.env.STUDIO_PHONE || '+91 98612 01770').trim(),
+    phone: (process.env.STUDIO_PHONE || '+91 84568 69931').trim(),
     ownerPhone: (process.env.OWNER_PHONE || '+91 84568 69931').trim(),
     email: (process.env.STUDIO_EMAIL || 'signaturedetailing.bbsr@gmail.com').trim(),
     address: (process.env.STUDIO_ADDRESS || 'Plot no - 55, Pahala, Before Utkal Mahindra Service, Bhubaneswar, Odisha 752101').trim(),

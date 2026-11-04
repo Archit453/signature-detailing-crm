@@ -240,7 +240,7 @@ export const SettingsView: React.FC = () => {
                   </div>
                   <div>
                     <div className="text-xs text-slate-400 font-medium mb-0.5">Contact Phone & WhatsApp</div>
-                    <div className="font-semibold text-sm">+91 98612 01770</div>
+                    <div className="font-semibold text-sm">+91 84568 69931</div>
                   </div>
                 </div>
               </div>
