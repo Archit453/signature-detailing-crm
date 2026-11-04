@@ -2,8 +2,8 @@
 
 A bespoke, mobile-first CRM and omni-channel automation platform engineered exclusively for **Signature Detailing** (car detailing studio in India).
 
-- **Live Production URL**: [https://signaturedetailing-five.vercel.app](https://signaturedetailing-five.vercel.app)
-- **API Health Endpoint**: [https://signaturedetailing-five.vercel.app/api/health](https://signaturedetailing-five.vercel.app/api/health)
+- **Live Production URL**: [https://signature-detailing-crm.vercel.app](https://signature-detailing-crm.vercel.app)
+- **API Health Endpoint**: [https://signature-detailing-crm.vercel.app/api/health](https://signature-detailing-crm.vercel.app/api/health)
 
 ---
 
@@ -70,7 +70,7 @@ cd frontend && npm run dev
 ### 1. 24/7 Keep-Alive & Anti-Pausing System
 Supabase free tier automatically pauses projects after 7 days of inactivity. This platform implements dual anti-pausing measures:
 - **GitHub Actions Scheduled Ping** ([`.github/workflows/keepalive.yml`](.github/workflows/keepalive.yml)): Runs every 30 minutes (`*/30 * * * *`) querying `/api/health`.
-- **UptimeRobot HTTP Monitor Integration**: A 5-minute health check ping directly to `https://signaturedetailing-five.vercel.app/api/health`.
+- **UptimeRobot HTTP Monitor Integration**: A 5-minute health check ping directly to `https://signature-detailing-crm.vercel.app/api/health`.
   - **Free Tier Quota Impact**:
     - Supabase REST requests: **1.7%** (8,640 of 500,000 monthly limit)
     - Vercel function requests: **8.6%** (8,640 of 100,000 monthly limit)
@@ -129,9 +129,9 @@ SUPABASE_SERVICE_ROLE_KEY=your-supabase-service-role-key
 ## 📱 Meta Cloud API Webhook Endpoints
 
 Configure these in Meta Developer Portal (**WhatsApp** > **Configuration** / **Instagram** > **Webhooks**):
-- **WhatsApp Callback URL**: `https://signaturedetailing-five.vercel.app/api/webhooks/whatsapp`
+- **WhatsApp Callback URL**: `https://signature-detailing-crm.vercel.app/api/webhooks/whatsapp`
 - **WhatsApp Verify Token**: Set a unique token in Integrations settings and use the same value in Meta.
-- **Instagram Callback URL**: `https://signaturedetailing-five.vercel.app/api/webhooks/instagram`
+- **Instagram Callback URL**: `https://signature-detailing-crm.vercel.app/api/webhooks/instagram`
 - **Instagram Verify Token**: Set a unique token in Integrations settings and use the same value in Meta.
 
 ---

@@ -135,7 +135,7 @@ export async function notifyOwnerNewLead(lead, attachedCustomer = null) {
       `📞 ${customerPhone}\n` +
       `🛠️ ${serviceName}\n` +
       `📍 ${channelName}\n` +
-      `🔗 Open CRM: https://signaturedetailing-five.vercel.app`;
+      `🔗 Open CRM: https://signature-detailing-crm.vercel.app`;
 
     const result = await sendMetaWhatsAppMessage(ownerPhone, alertMsg);
     console.log(`[Owner Notified - ${channelName}] Alert dispatched to owner (${ownerPhone}) for lead: ${customerName} (${serviceName})`);
@@ -190,7 +190,7 @@ export async function notifyOwnerLeadUpdate({
       `📞 ${customerPhone}\n` +
       `🛠️ ${activeService}\n` +
       `📍 ${newChannel}\n` +
-      `🔗 Open CRM: https://signaturedetailing-five.vercel.app`;
+      `🔗 Open CRM: https://signature-detailing-crm.vercel.app`;
 
     const result = await sendMetaWhatsAppMessage(ownerPhone, alertMsg);
     console.log(`[Owner Notified - ${newChannel}] Alert dispatched to owner (${ownerPhone}) for: ${customerName} (${activeService})`);

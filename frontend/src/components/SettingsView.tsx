@@ -23,6 +23,12 @@ export const SettingsView: React.FC = () => {
   const isLight = theme === 'light';
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
 
+  const crmOrigin = typeof window !== 'undefined' && window.location.origin && !window.location.origin.includes('localhost')
+    ? window.location.origin
+    : 'https://signature-detailing-crm.vercel.app';
+  const whatsappWebhookUrl = `${crmOrigin}/api/webhooks/whatsapp`;
+  const instagramWebhookUrl = `${crmOrigin}/api/webhooks/instagram`;
+
   const handleCopy = (key: string, text: string) => {
     navigator.clipboard.writeText(text);
     setCopiedKey(key);
@@ -326,9 +332,9 @@ export const SettingsView: React.FC = () => {
                     isLight ? 'bg-slate-50 border-slate-200' : 'bg-slate-950/50 border-slate-800'
                   }`}>
                     <code className="text-[11px] truncate text-slate-600 dark:text-slate-400 select-all">
-                      https://signaturedetailing-five.vercel.app/api/webhooks/whatsapp
+                      {whatsappWebhookUrl}
                     </code>
-                    <CopyButton id="wa-url" text="https://signaturedetailing-five.vercel.app/api/webhooks/whatsapp" />
+                    <CopyButton id="wa-url" text={whatsappWebhookUrl} />
                   </div>
                 </div>
                 
@@ -363,9 +369,9 @@ export const SettingsView: React.FC = () => {
                     isLight ? 'bg-slate-50 border-slate-200' : 'bg-slate-950/50 border-slate-800'
                   }`}>
                     <code className="text-[11px] truncate text-slate-600 dark:text-slate-400 select-all">
-                      https://signaturedetailing-five.vercel.app/api/webhooks/instagram
+                      {instagramWebhookUrl}
                     </code>
-                    <CopyButton id="ig-url" text="https://signaturedetailing-five.vercel.app/api/webhooks/instagram" />
+                    <CopyButton id="ig-url" text={instagramWebhookUrl} />
                   </div>
                 </div>
                 
