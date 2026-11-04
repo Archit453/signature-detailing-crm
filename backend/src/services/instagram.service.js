@@ -422,6 +422,8 @@ export async function handleIncomingInstagramComment(commentData, entryAccountId
     Boolean(
       fromUsername && (
         fromUsername.toLowerCase() === 'signaturedetailing' ||
+        fromUsername.toLowerCase() === 'signaturedetailing.bbsr' ||
+        fromUsername.toLowerCase() === 'signaturedetailingbbsr' ||
         fromUsername.toLowerCase() === 'signaturedetailing_official' ||
         fromUsername.toLowerCase() === 'signature_detailing'
       )
