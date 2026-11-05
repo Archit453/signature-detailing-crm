@@ -148,27 +148,37 @@ export async function sendInstagramOutboundMessage(recipientId, text, options = 
   try {
     const isIGToken = token.startsWith('IGAA') || token.startsWith('IGA');
     const targetAccountId = options.accountId || integrations?.instagram?.page_id || config.instagram.pageId;
-    const accountSegment = (targetAccountId && targetAccountId !== 'dummy' && /^\d+$/.test(targetAccountId))
+    const isIgAccountId = /^(17841|ig_)/.test(String(targetAccountId || ''));
+    const accountSegment = (!isIgAccountId && targetAccountId && targetAccountId !== 'dummy' && targetAccountId !== '1044542855126226' && /^\d+$/.test(targetAccountId))
       ? targetAccountId
       : 'me';
 
-    const baseUrl = isIGToken
+    // Primary and alternative base URLs:
+    // With Page tokens (EAA...), /me/messages routes directly to the Page associated with the token.
+    const primaryBase = isIGToken
       ? 'https://graph.instagram.com/v21.0/me/messages'
       : `https://graph.facebook.com/v21.0/${accountSegment}/messages`;
+    const fallbackBase = isIGToken
+      ? `https://graph.facebook.com/v21.0/${accountSegment}/messages`
+      : 'https://graph.instagram.com/v21.0/me/messages';
 
-    const url = `${baseUrl}?access_token=${encodeURIComponent(token)}`;
-    let response = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        recipient: { id: cleanId },
-        message: messageObj,
-      }),
-    });
+    const dispatchPost = async (baseUrl, payload) => {
+      const u = `${baseUrl}?access_token=${encodeURIComponent(token)}`;
+      const res = await fetch(u, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          recipient: { id: cleanId },
+          message: payload,
+        }),
+      });
+      const d = await res.json().catch(() => ({}));
+      return { res, d };
+    };
 
-    let data = await response.json();
+    let { res: response, d: data } = await dispatchPost(primaryBase, messageObj);
 
-    // Fallback: If template was rejected by Meta, retry with plain text + Quick Replies
+    // Fallback 1: If template was rejected by Meta, retry with plain text + Quick Replies
     if (!response.ok && messageObj.attachment) {
       console.warn('[Meta Instagram Template Rejected, retrying with Quick Replies]:', data.error?.message);
       const fallbackObj = {
@@ -181,19 +191,30 @@ export async function sendInstagramOutboundMessage(recipientId, text, options = 
           payload: String(b.payload || b.id || ''),
         }));
       }
-      response = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          recipient: { id: cleanId },
-          message: fallbackObj,
-        }),
-      });
-      data = await response.json();
+      const retry = await dispatchPost(primaryBase, fallbackObj);
+      response = retry.res;
+      data = retry.d;
+    }
+
+    // Fallback 2: If primaryBase returned an endpoint or parameter error, retry on fallbackBase (/me/messages)
+    if (!response.ok && (data.error?.code === 100 || response.status === 404 || response.status === 400)) {
+      console.warn(`[Meta Instagram Retrying via Fallback Endpoint (${fallbackBase})]:`, data.error?.message);
+      const altRetry = await dispatchPost(fallbackBase, messageObj);
+      if (altRetry.res.ok) {
+        response = altRetry.res;
+        data = altRetry.d;
+      } else if (messageObj.attachment) {
+        const textOnlyObj = { text: String(text || 'Welcome to Signature Detailing.').slice(0, 1000) };
+        const textRetry = await dispatchPost(fallbackBase, textOnlyObj);
+        if (textRetry.res.ok) {
+          response = textRetry.res;
+          data = textRetry.d;
+        }
+      }
     }
 
     if (!response.ok) {
-      console.error(`[Meta Instagram API Error ${response.status} (${data.error?.code})]:`, data.error?.message);
+      console.error(`[Meta Instagram API Error ${response.status} (${data.error?.code})]:`, data.error?.message || data);
       return { simulated: true, error: data.error };
     }
     return { success: true, data };
@@ -423,7 +444,8 @@ export async function sendInstagramPrivateCommentReply(commentId, messageText, o
   try {
     const isIGToken = token.startsWith('IGAA') || token.startsWith('IGA');
     const targetAccountId = options.accountId || integrations?.instagram?.page_id || config.instagram.pageId;
-    const accountSegment = (targetAccountId && targetAccountId !== 'dummy' && /^\d+$/.test(targetAccountId))
+    const isIgAccountId = /^(17841|ig_)/.test(String(targetAccountId || ''));
+    const accountSegment = (!isIgAccountId && targetAccountId && targetAccountId !== 'dummy' && targetAccountId !== '1044542855126226' && /^\d+$/.test(targetAccountId))
       ? targetAccountId
       : 'me';
 

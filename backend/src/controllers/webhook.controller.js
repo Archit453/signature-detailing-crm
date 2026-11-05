@@ -204,7 +204,7 @@ export async function handleInstagramWebhook(req, res) {
           if (!senderId) continue;
 
           // Skip echo messages from own page
-          // Mirror outbound reply from studio staff in Instagram app & pause bot (Human Takeover)
+          // Mirror outbound reply from studio staff in Instagram app & keep bot active (matches WhatsApp coexistence)
           if (event.message?.is_echo) {
             const customerId = event.recipient?.id;
             const outboundText = event.message?.text || '[Media]';
@@ -218,10 +218,8 @@ export async function handleInstagramWebhook(req, res) {
                 content: outboundText,
                 metaMessageId: event.message?.mid || `echo-ig-${Date.now()}`,
               });
-              // Stop bot for this customer since owner/staff is replying directly from Instagram app
+              // Keep bot active even when staff messages from Instagram app
               await updateConversationState(conversation.id, {
-                bot_active: false,
-                bot_paused_reason: 'owner_takeover',
                 bot_step: 'human_takeover',
               });
             }
