@@ -87,22 +87,25 @@ export const SettingsView: React.FC = () => {
         api.getIntegrations().catch(() => null)
       ]);
 
-      if (genRes && genRes.data) {
+      const genData = genRes?.data !== undefined ? genRes.data : genRes;
+      const intData = intRes?.data !== undefined ? intRes.data : intRes;
+
+      if (genData && typeof genData === 'object') {
         setStudioProfile(prev => ({
           ...prev,
-          ...genRes.data
+          ...genData
         }));
       }
 
-      if (intRes && intRes.data) {
-        setIntegrationsData(intRes.data);
+      if (intData && typeof intData === 'object') {
+        setIntegrationsData(intData);
         setTokenInputs({
-          whatsapp_phone_number_id: intRes.data.whatsapp?.phone_number_id || '',
+          whatsapp_phone_number_id: intData.whatsapp?.phone_number_id || '',
           whatsapp_token: '',
-          whatsapp_verify_token: intRes.data.whatsapp?.verify_token || 'signature_wa_verify_secret',
-          instagram_page_id: intRes.data.instagram?.page_id || '',
+          whatsapp_verify_token: intData.whatsapp?.verify_token || 'signature_wa_verify_secret',
+          instagram_page_id: intData.instagram?.page_id || '',
           instagram_page_access_token: '',
-          instagram_verify_token: intRes.data.instagram?.verify_token || 'signature_ig_verify_secret'
+          instagram_verify_token: intData.instagram?.verify_token || 'signature_ig_verify_secret'
         });
       }
     } catch (e) {
@@ -150,6 +153,7 @@ export const SettingsView: React.FC = () => {
       if (res.ok && data.status === 'online') {
         setWaPingStatus('online');
         setWaPingMsg(`Online (HTTP ${res.status}): Ready for Meta Webhooks`);
+        loadSettings();
       } else {
         setWaPingStatus('error');
         setWaPingMsg(`Unexpected response (HTTP ${res.status})`);
@@ -169,6 +173,7 @@ export const SettingsView: React.FC = () => {
       if (res.ok && data.status === 'online') {
         setIgPingStatus('online');
         setIgPingMsg(`Online (HTTP ${res.status}): Verified Handshake Ready`);
+        loadSettings();
       } else {
         setIgPingStatus('error');
         setIgPingMsg(`Unexpected response (HTTP ${res.status})`);
@@ -355,8 +360,20 @@ export const SettingsView: React.FC = () => {
                         <WhatsAppIcon className="w-4 h-4 text-[#25D366]" />
                       </div>
                       <div>
-                        <h3 className="font-bold text-sm text-[#25D366]">WhatsApp Cloud API</h3>
-                        <p className="text-[11px] text-slate-400">Meta Callback & Verification</p>
+                        <div className="flex items-center gap-2">
+                          <h3 className="font-bold text-sm text-[#25D366]">WhatsApp Cloud API</h3>
+                          {integrationsData?.whatsapp?.is_connected && (
+                            <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-bold border border-emerald-500/20 flex items-center gap-1">
+                              <CheckCircle2 className="w-3 h-3 text-emerald-500" />
+                              {integrationsData.whatsapp.account_name}
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-[11px] text-slate-400">
+                          {integrationsData?.whatsapp?.is_connected
+                            ? `Connected Business: ${integrationsData.whatsapp.account_name}`
+                            : 'Meta Callback & Verification'}
+                        </p>
                       </div>
                     </div>
 
@@ -420,8 +437,28 @@ export const SettingsView: React.FC = () => {
                         <InstagramIcon className="w-4 h-4 text-pink-500" />
                       </div>
                       <div>
-                        <h3 className="font-bold text-sm text-pink-500">Instagram Graph API</h3>
-                        <p className="text-[11px] text-slate-400">Direct Messages & Comments</p>
+                        <div className="flex items-center gap-2">
+                          <h3 className="font-bold text-sm text-pink-500">Instagram Graph API</h3>
+                          {integrationsData?.instagram?.is_connected ? (
+                            <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-bold border border-emerald-500/20 flex items-center gap-1 shadow-sm">
+                              <CheckCircle2 className="w-3 h-3 text-emerald-500" />
+                              @{integrationsData.instagram.account_name}
+                            </span>
+                          ) : integrationsData?.instagram?.has_token ? (
+                            <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-500 font-medium border border-amber-500/20">
+                              Verifying...
+                            </span>
+                          ) : (
+                            <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-200 dark:bg-slate-800 text-slate-400 font-medium">
+                              Not Connected
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-[11px] text-slate-400">
+                          {integrationsData?.instagram?.is_connected
+                            ? `Connected Account: @${integrationsData.instagram.account_name}`
+                            : 'Direct Messages & Comments'}
+                        </p>
                       </div>
                     </div>
 
@@ -508,39 +545,57 @@ export const SettingsView: React.FC = () => {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
                   <div className={`p-4 rounded-xl border ${isLight ? 'bg-slate-50 border-slate-200' : 'bg-slate-950/40 border-slate-800'}`}>
                     <div className="text-xs font-semibold text-slate-400 mb-1 flex items-center justify-between">
-                      <span>WhatsApp Phone Number ID</span>
-                      {integrationsData?.whatsapp?.has_token ? (
+                      <span>WhatsApp Business Account</span>
+                      {integrationsData?.whatsapp?.is_connected ? (
                         <span className="text-emerald-500 text-[10px] flex items-center gap-1 font-bold">
-                          <Check className="w-3 h-3" /> TOKEN ACTIVE
+                          <Check className="w-3 h-3" /> VERIFIED
                         </span>
+                      ) : integrationsData?.whatsapp?.has_token ? (
+                        <span className="text-amber-500 text-[10px] font-bold">TOKEN ACTIVE</span>
                       ) : (
-                        <span className="text-amber-500 text-[10px] font-bold">TOKEN REQUIRED</span>
+                        <span className="text-slate-400 text-[10px] font-bold">TOKEN REQUIRED</span>
                       )}
                     </div>
-                    <div className="font-mono text-sm font-semibold">
-                      {tokenInputs.whatsapp_phone_number_id || 'Not Configured'}
+                    <div className="font-bold text-sm text-[#25D366] flex items-center gap-2">
+                      {integrationsData?.whatsapp?.is_connected ? (
+                        <>
+                          <span className="truncate">{integrationsData.whatsapp.account_name}</span>
+                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 font-bold shrink-0">LIVE</span>
+                        </>
+                      ) : (
+                        <span className="font-mono text-xs text-slate-400">{tokenInputs.whatsapp_phone_number_id || 'Not Configured'}</span>
+                      )}
                     </div>
-                    <div className="text-[11px] text-slate-400 mt-1">
-                      Preview: {integrationsData?.whatsapp?.token_preview || 'None'}
+                    <div className="text-[11px] text-slate-400 mt-1 truncate">
+                      Phone ID: {tokenInputs.whatsapp_phone_number_id || 'None'} • Token: {integrationsData?.whatsapp?.token_preview || 'None'}
                     </div>
                   </div>
 
                   <div className={`p-4 rounded-xl border ${isLight ? 'bg-slate-50 border-slate-200' : 'bg-slate-950/40 border-slate-800'}`}>
                     <div className="text-xs font-semibold text-slate-400 mb-1 flex items-center justify-between">
-                      <span>Instagram Page ID</span>
-                      {integrationsData?.instagram?.has_token ? (
+                      <span>Instagram Account</span>
+                      {integrationsData?.instagram?.is_connected ? (
                         <span className="text-emerald-500 text-[10px] flex items-center gap-1 font-bold">
-                          <Check className="w-3 h-3" /> TOKEN ACTIVE
+                          <Check className="w-3 h-3" /> VERIFIED
                         </span>
+                      ) : integrationsData?.instagram?.has_token ? (
+                        <span className="text-amber-500 text-[10px] font-bold">TOKEN ACTIVE</span>
                       ) : (
-                        <span className="text-amber-500 text-[10px] font-bold">TOKEN REQUIRED</span>
+                        <span className="text-slate-400 text-[10px] font-bold">TOKEN REQUIRED</span>
                       )}
                     </div>
-                    <div className="font-mono text-sm font-semibold">
-                      {tokenInputs.instagram_page_id || 'Not Configured'}
+                    <div className="font-bold text-sm text-pink-500 flex items-center gap-2">
+                      {integrationsData?.instagram?.is_connected ? (
+                        <>
+                          <span>@{integrationsData.instagram.account_name}</span>
+                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 font-bold shrink-0">CONNECTED</span>
+                        </>
+                      ) : (
+                        <span className="font-mono text-xs text-slate-400">{tokenInputs.instagram_page_id || 'Not Configured'}</span>
+                      )}
                     </div>
-                    <div className="text-[11px] text-slate-400 mt-1">
-                      Preview: {integrationsData?.instagram?.token_preview || 'None'}
+                    <div className="text-[11px] text-slate-400 mt-1 truncate">
+                      Page ID: {tokenInputs.instagram_page_id || 'None'} • Token: {integrationsData?.instagram?.token_preview || 'None'}
                     </div>
                   </div>
                 </div>

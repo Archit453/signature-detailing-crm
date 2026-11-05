@@ -1,6 +1,14 @@
 import { getSetting, updateSetting } from '../services/settings.service.js';
 import { successResponse } from '../utils/apiResponse.js';
 
+let cachedIgMeta = null;
+let cachedIgMetaToken = '';
+let cachedIgMetaExpiry = 0;
+
+let cachedWaMeta = null;
+let cachedWaMetaToken = '';
+let cachedWaMetaExpiry = 0;
+
 export async function getGeneralSettings(req, res) {
   const general = await getSetting('general');
   return successResponse(res, general);
@@ -24,6 +32,97 @@ export async function saveBotMessages(req, res) {
 
 export async function getIntegrations(req, res) {
   const integrations = await getSetting('integrations');
+  const now = Date.now();
+
+  const igToken = integrations?.instagram?.page_access_token || '';
+  const igPageId = integrations?.instagram?.page_id || '';
+  let igMeta = { is_connected: false, account_name: null, error: null };
+
+  if (igToken) {
+    if (cachedIgMeta && cachedIgMetaToken === igToken && cachedIgMetaExpiry > now) {
+      igMeta = cachedIgMeta;
+    } else {
+      try {
+        const isIGToken = igToken.startsWith('IGAA') || igToken.startsWith('IGA');
+        const url = isIGToken
+          ? `https://graph.instagram.com/v21.0/me?fields=id,username&access_token=${encodeURIComponent(igToken)}`
+          : `https://graph.facebook.com/v21.0/${igPageId && /^\d+$/.test(igPageId) ? igPageId : 'me'}?fields=id,name,username&access_token=${encodeURIComponent(igToken)}`;
+
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 3500);
+        const metaRes = await fetch(url, { signal: controller.signal });
+        clearTimeout(timeoutId);
+        const metaData = await metaRes.json();
+
+        if (metaRes.ok && (metaData.username || metaData.name || metaData.id)) {
+          igMeta = {
+            is_connected: true,
+            account_name: metaData.username ? metaData.username.replace(/^@/, '') : (metaData.name || 'Instagram Account'),
+            meta_id: metaData.id,
+            error: null,
+          };
+        } else {
+          igMeta = {
+            is_connected: false,
+            account_name: null,
+            error: metaData.error?.message || 'Token verification failed',
+          };
+        }
+      } catch (err) {
+        igMeta = {
+          is_connected: false,
+          account_name: null,
+          error: err.name === 'AbortError' ? 'Meta API timeout' : err.message,
+        };
+      }
+      cachedIgMeta = igMeta;
+      cachedIgMetaToken = igToken;
+      cachedIgMetaExpiry = now + 5 * 60 * 1000; // Cache 5 min
+    }
+  }
+
+  const waToken = integrations?.whatsapp?.token || '';
+  const waPhoneId = integrations?.whatsapp?.phone_number_id || '';
+  let waMeta = { is_connected: false, account_name: null, error: null };
+
+  if (waToken && waPhoneId && /^\d+$/.test(waPhoneId) && waPhoneId !== '100236173166560') {
+    if (cachedWaMeta && cachedWaMetaToken === waToken && cachedWaMetaExpiry > now) {
+      waMeta = cachedWaMeta;
+    } else {
+      try {
+        const url = `https://graph.facebook.com/v21.0/${waPhoneId}?fields=id,verified_name,display_phone_number&access_token=${encodeURIComponent(waToken)}`;
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 3500);
+        const metaRes = await fetch(url, { signal: controller.signal });
+        clearTimeout(timeoutId);
+        const metaData = await metaRes.json();
+
+        if (metaRes.ok && metaData.id) {
+          waMeta = {
+            is_connected: true,
+            account_name: metaData.verified_name || metaData.display_phone_number || 'WhatsApp Business',
+            meta_id: metaData.id,
+            error: null,
+          };
+        } else {
+          waMeta = {
+            is_connected: false,
+            account_name: null,
+            error: metaData.error?.message || 'WhatsApp token verification failed',
+          };
+        }
+      } catch (err) {
+        waMeta = {
+          is_connected: false,
+          account_name: null,
+          error: err.name === 'AbortError' ? 'Meta API timeout' : err.message,
+        };
+      }
+      cachedWaMeta = waMeta;
+      cachedWaMetaToken = waToken;
+      cachedWaMetaExpiry = now + 5 * 60 * 1000;
+    }
+  }
 
   // Mask sensitive tokens for safe display in UI
   const masked = {
@@ -34,6 +133,9 @@ export async function getIntegrations(req, res) {
       token_preview: integrations?.whatsapp?.token
         ? `${integrations.whatsapp.token.slice(0, 8)}...${integrations.whatsapp.token.slice(-4)}`
         : '',
+      is_connected: waMeta.is_connected,
+      account_name: waMeta.account_name,
+      error: waMeta.error,
     },
     instagram: {
       page_id: integrations?.instagram?.page_id || '',
@@ -42,6 +144,9 @@ export async function getIntegrations(req, res) {
       token_preview: integrations?.instagram?.page_access_token
         ? `${integrations.instagram.page_access_token.slice(0, 8)}...${integrations.instagram.page_access_token.slice(-4)}`
         : '',
+      is_connected: igMeta.is_connected,
+      account_name: igMeta.account_name,
+      error: igMeta.error,
     },
   };
 
@@ -65,6 +170,10 @@ export async function saveIntegrations(req, res) {
     },
   };
 
+  // Invalidate cache on token update
+  cachedIgMetaExpiry = 0;
+  cachedWaMetaExpiry = 0;
+
   await updateSetting('integrations', merged);
   return successResponse(res, { updated: true }, 'Integration settings saved successfully');
 }
@@ -86,4 +195,3 @@ export async function pruneMessagesHandler(req, res) {
   const result = await pruneOldMessages(Number(days) || 30);
   return successResponse(res, result, `Cleaned up messages older than ${days} days`);
 }
-
