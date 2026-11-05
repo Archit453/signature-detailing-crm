@@ -20,7 +20,7 @@ export const BOT_MESSAGES = {
   // --------------------------------------------------------------------------
   // 1. WELCOME & GREETING (Phase 1: When customer first messages on WhatsApp/IG)
   // --------------------------------------------------------------------------
-  welcome: 'Hi! Which service are you looking for today? 🚗✨',
+  welcome: 'Which service are you looking for today? 🚗✨',
 
   btn_view_packages: 'View Packages 🚗',
   services_menu_title: 'Select a Detailing Package 🚗✨',
@@ -100,7 +100,7 @@ export const BOT_MESSAGES = {
   // 9. INSTAGRAM COMMENT AUTOMATION (Public Reel Reply & Private DM)
   // --------------------------------------------------------------------------
   comment_public_reply: 'Hi @{{username}}! Check your DM 📩',
-  comment_private_dm: 'Hi! Which service are you looking for today? 🚗✨',
+  comment_private_dm: 'Which service are you looking for today? 🚗✨',
 };
 
 /**
@@ -115,12 +115,12 @@ export function formatMessage(keyOrTemplate, data = {}) {
 
   const defaultWebsite = config.studio?.websiteUrl || 'https://signature-detailing.pages.dev/';
   const defaultStudioPhone = config.studio?.phone || '+91 98612 01770';
-  const defaultOwnerPhone = config.studio?.ownerPhone || '+91 98612 01770';
+  const defaultOwnerPhone = config.studio?.ownerPhone || '+91 84568 69931';
   const defaultStudioName = config.studio?.name || 'Signature Detailing';
   const defaultAddress = config.studio?.address || 'Plot no - 55, Pahala, Before Utkal Mahindra Service, Bhubaneswar, Odisha 752101';
   const defaultMaps = config.studio?.googleMapsLink || 'https://maps.app.goo.gl/TP4S4MommkGLpAzP7';
-  const cleanPhone = defaultStudioPhone.replace(/\D/g, '');
-  const defaultWhatsApp = `https://wa.me/${cleanPhone}`;
+  const cleanOwnerPhone = defaultOwnerPhone.replace(/\D/g, '') || '918456869931';
+  const defaultWhatsApp = `https://wa.me/${cleanOwnerPhone}`;
 
   const merged = {
     websiteUrl: defaultWebsite,
@@ -131,7 +131,7 @@ export function formatMessage(keyOrTemplate, data = {}) {
     address: defaultAddress,
     mapsUrl: defaultMaps,
     whatsappUrl: defaultWhatsApp,
-    cleanPhone,
+    cleanPhone: cleanOwnerPhone,
     ...data,
   };
 

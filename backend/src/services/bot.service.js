@@ -1,3 +1,4 @@
+import { config } from '../config/env.js';
 import { getSetting, getActiveServices } from './settings.service.js';
 import { BOT_MESSAGES, formatMessage } from '../config/botMessages.js';
 import { findOrCreateCustomer } from './customer.service.js';
@@ -9,7 +10,7 @@ import {
   logBotTurnMessages,
   updateConversationState as baseUpdateConversationState,
 } from './whatsapp.service.js';
-import { sendInstagramOutboundMessage } from './instagram.service.js';
+import { sendInstagramOutboundMessage, sendInstagramActionCard } from './instagram.service.js';
 import { validateAndFormatPhone } from '../utils/phoneValidator.js';
 import { supabase, isSupabaseConfigured } from '../config/supabase.js';
 import {
@@ -329,8 +330,9 @@ export async function processBotMessage({
   const hasDetectedPhone = !isOpaqueId && userPhoneCheck.isValid;
 
   // 1. Ultra-fast parallel pre-fetch: Loads settings & resolves customer concurrently
-  const [botConfigRaw, activeServices, customer] = await Promise.all([
+  const [botConfigRaw, generalConfigRaw, activeServices, customer] = await Promise.all([
     getSetting('bot_messages'),
+    getSetting('general'),
     getActiveServices(),
     findOrCreateCustomer({
       name: profileName || (channel === 'whatsapp' ? 'WhatsApp Customer' : 'Instagram Customer'),
@@ -339,22 +341,32 @@ export async function processBotMessage({
     }),
   ]);
   const botConfig = botConfigRaw || {};
+  const studioConfig = generalConfigRaw || {};
   const displayInput = formatFriendlyMessageText(cleanInput, activeServices);
 
   const conversation = channel === 'whatsapp'
     ? await findOrCreateWhatsAppConversation(customer.id, channelUserId)
     : await findOrCreateInstagramConversation(customer.id, channelUserId, profileName);
 
-  // OWNER GUARD: If Vineet Das (@das_vineet11 / 917008426671) messages, STOP the bot immediately!
-  const isOwnerSender =
-    (profileName && (profileName.toLowerCase().includes('das_vineet11') || profileName.toLowerCase().includes('vineet das') || profileName.toLowerCase().includes('vineet'))) ||
-    (channelUserId && (channelUserId === 'das_vineet11' || channelUserId.includes('7008426671'))) ||
-    (cleanInput && cleanInput.includes('7008426671')) ||
-    (customer?.phone && customer.phone.includes('7008426671')) ||
-    (customer?.name && (customer.name.toLowerCase().includes('vineet das') || customer.name.toLowerCase().includes('das_vineet11')));
+  // OWNER GUARD: Account-independent. If the configured business owner messages, STOP the bot immediately!
+  const configuredOwnerHandle = (studioConfig.owner_instagram || config.studio?.ownerInstagram || config.owner?.instagramUsername || '').toLowerCase().replace(/^@/, '');
+  const configuredOwnerPhone = (studioConfig.owner_phone || config.studio?.ownerPhone || config.owner?.phone || '').replace(/\D/g, '');
+
+  const isOwnerSender = Boolean(
+    (configuredOwnerHandle && (
+      (channelUserId && channelUserId.toLowerCase().replace(/^ig_/, '') === configuredOwnerHandle) ||
+      (profileName && profileName.toLowerCase().includes(configuredOwnerHandle)) ||
+      (customer?.name && customer.name.toLowerCase().includes(configuredOwnerHandle))
+    )) ||
+    (configuredOwnerPhone && (
+      (channelUserId && channelUserId.includes(configuredOwnerPhone)) ||
+      (customer?.phone && customer.phone.replace(/\D/g, '').includes(configuredOwnerPhone)) ||
+      (cleanInput && cleanInput.replace(/\D/g, '').includes(configuredOwnerPhone))
+    ))
+  );
 
   if (isOwnerSender) {
-    console.log(`[Owner Guard] Vineet Das (@das_vineet11 / 917008426671) detected. Stopping bot immediately.`);
+    console.log(`[Owner Guard] Account owner detected (@${configuredOwnerHandle || configuredOwnerPhone}). Stopping bot immediately.`);
     conversation.bot_active = false;
     conversation.bot_step = 'human_takeover';
     conversation.bot_paused_reason = 'owner_takeover';
@@ -418,7 +430,6 @@ export async function processBotMessage({
     HUMAN_KEYWORDS.some((kw) => lowerInput === kw || (kw.length >= 5 && lowerInput.includes(kw)));
 
   if (wantsHuman) {
-    const studioConfig = (await getSetting('general')) || {};
     const studioName = studioConfig.studio_name || getStudioName();
     const address = studioConfig.address || getStudioAddress();
     const phone = studioConfig.phone || getStudioPhone();
@@ -467,7 +478,7 @@ export async function processBotMessage({
     });
 
     // Notify studio owner / staff on WhatsApp about the human takeover request
-    const ownerPhone = studioConfig.phone || config.studio?.ownerPhone || '917008457284';
+    const ownerPhone = studioConfig.owner_phone || studioConfig.phone || config.studio?.ownerPhone || '+91 84568 69931';
     if (ownerPhone && ownerPhone !== channelUserId) {
       const ownerAlertText = `🔔 *Staff Attention Needed!*\n\nCustomer *${customer?.name || channelUserId}* on ${channel.toUpperCase()} requested a human agent.\n\n💬 Message: "${cleanInput}"\n👉 Open CRM Inbox to reply.`;
       sendMetaWhatsAppMessage(ownerPhone, ownerAlertText).catch(() => {});
@@ -501,7 +512,6 @@ export async function processBotMessage({
 
   // Quick Action: Studio Location
   if (cleanInput === 'ACTION_LOCATION' || lowerInput === 'location' || lowerInput.includes('studio location')) {
-    const studioConfig = (await getSetting('general')) || {};
     const studioName = studioConfig.studio_name || getStudioName();
     const address = studioConfig.address || getStudioAddress();
     const phone = studioConfig.phone || getStudioPhone();
@@ -541,7 +551,7 @@ export async function processBotMessage({
     lowerInput.startsWith('change number');
 
   if (isChangePhoneAction) {
-    const askNewPhone = 'Please share your 10-digit mobile number so our detailing specialist can reach out:';
+    const askNewPhone = 'Please share your 10-digit mobile number:';
     const sendPromise = channel === 'whatsapp'
       ? sendMetaWhatsAppMessage(channelUserId, askNewPhone)
       : sendInstagramOutboundMessage(channelUserId, askNewPhone);
@@ -795,7 +805,7 @@ export async function processBotMessage({
       }
 
       // If name is already known (e.g. resolved from Instagram profile)
-      const askPhoneMsg = `Thanks ${candidateName}! 🚗 Selected: *${targetService}*\nWhich vehicle do you drive, and what's your 10-digit mobile number?`;
+      const askPhoneMsg = `Thanks ${candidateName}! 🚗 Selected: *${targetService}*\nPlease share your 10-digit mobile number:`;
       const sendPromise = channel === 'whatsapp'
         ? sendMetaWhatsAppMessage(channelUserId, askPhoneMsg)
         : sendInstagramOutboundMessage(channelUserId, askPhoneMsg);
@@ -852,7 +862,7 @@ export async function processBotMessage({
       supabase.from('conversations').update({ customer_name: finalName }).eq('id', conversation.id).then(() => {}, () => {});
     }
 
-    const askVehicleAndPhone = `Thanks ${finalName}! 🚗\nWhich vehicle do you drive, and what's your 10-digit mobile number?`;
+    const askVehicleAndPhone = `Thanks ${finalName}! 🚗\nPlease share your 10-digit mobile number:`;
     const sendPromise = channel === 'whatsapp'
       ? sendMetaWhatsAppMessage(channelUserId, askVehicleAndPhone)
       : sendInstagramOutboundMessage(channelUserId, askVehicleAndPhone);
@@ -1005,7 +1015,6 @@ export async function processBotMessage({
   const currentFallback = (fallbackTracker.get(channelUserId) || 0) + 1;
   fallbackTracker.set(channelUserId, currentFallback);
 
-  const studioConfig = (await getSetting('general')) || {};
   const studioName = studioConfig.studio_name || getStudioName();
   const address = studioConfig.address || getStudioAddress();
   const studioPhone = studioConfig.phone || getStudioPhone();
@@ -1108,21 +1117,15 @@ async function completeLeadCapture({
   const studioName = studioConfig.studio_name || getStudioName();
   const address = studioConfig.address || getStudioAddress();
   const phone = studioConfig.phone || getStudioPhone();
-  const cleanPhone = phone.replace(/\D/g, '');
-  const whatsappUrl = `https://wa.me/${cleanPhone}`;
+  const ownerPhone = studioConfig.owner_phone || config.studio?.ownerPhone || config.owner?.phone || '+91 84568 69931';
+  const cleanOwnerPhone = String(ownerPhone).replace(/\D/g, '') || '918456869931';
   const websiteUrl = studioConfig.website_url || getStudioWebsite();
   const mapsUrl = studioConfig.google_maps_link || 'https://maps.app.goo.gl/TP4S4MommkGLpAzP7';
 
-  const fullClosingText =
+  const confirmationText =
     `Request Received ✅\n` +
     `${serviceName} booked for ${formattedPhone}.\n` +
-    `We'll call you shortly! 📞\n\n` +
-    `📍 ${studioName}\n` +
-    `🏢 ${address}\n` +
-    `📞 ${phone}\n` +
-    `💬 WhatsApp: ${whatsappUrl}\n` +
-    `🗺️ Maps: ${mapsUrl}\n` +
-    `🌐 ${websiteUrl}`;
+    `We'll call you shortly! 📞`;
 
   const postLeadButtons = [
     { id: 'PHONE_CHANGE', title: BOT_MESSAGES.btn_change_phone },
@@ -1131,9 +1134,26 @@ async function completeLeadCapture({
   // 1. Send outbound message immediately to user (instant delivery!)
   const sendPromise = (async () => {
     if (channel === 'whatsapp') {
-      await sendMetaWhatsAppMessage(channelUserId, fullClosingText, { buttons: postLeadButtons });
+      const waStudioText =
+        `${confirmationText}\n\n` +
+        `📍 *${studioName}*\n` +
+        `🏢 ${address}\n` +
+        `📞 ${phone}\n` +
+        `💬 WhatsApp: https://wa.me/${cleanOwnerPhone}\n` +
+        `🗺️ Maps: ${mapsUrl}\n` +
+        `🌐 ${websiteUrl}`;
+      await sendMetaWhatsAppMessage(channelUserId, waStudioText, { buttons: postLeadButtons });
     } else {
-      await sendInstagramOutboundMessage(channelUserId, fullClosingText, { buttons: postLeadButtons });
+      // 1. Send clean confirmation with "Change Phone Number" button
+      await sendInstagramOutboundMessage(channelUserId, confirmationText, { buttons: postLeadButtons });
+      // 2. Send native Instagram Action Card with the 3 interactive one-tap buttons (Image 2)
+      await sendInstagramActionCard(channelUserId, {
+        title: `${studioName} Bhubaneswar 🚗✨`,
+        subtitle: 'Explore packages, PPF, ceramics & studio pricing',
+        websiteUrl,
+        ownerPhone: cleanOwnerPhone,
+        mapsUrl,
+      });
     }
   })();
 
@@ -1165,7 +1185,7 @@ async function completeLeadCapture({
       logBotTurnMessages({
         conversationId: conversation.id,
         inbound: { content: formatFriendlyMessageText(inboundInput), metaMessageId },
-        outbound: { content: fullClosingText },
+        outbound: { content: confirmationText },
         conversationUpdates: {
           bot_step: 'completed',
           pending_name: null,

@@ -7,9 +7,9 @@ import { config } from './env.js';
 export const STUDIO_CONFIG = {
   general: {
     studio_name: config.studio?.name || 'Signature Detailing',
-    owner_phone: process.env.OWNER_PHONE || '917008426671',
-    owner_instagram: 'das_vineet11',
-    owner_name: 'Vineet Das',
+    owner_phone: process.env.OWNER_PHONE || '+91 84568 69931',
+    owner_instagram: (process.env.OWNER_INSTAGRAM || 'das_vineet11').replace(/^@/, ''),
+    owner_name: process.env.OWNER_NAME || 'Owner',
     phone: config.studio?.phone || '+91 98612 01770',
     email: config.studio?.email || 'signaturedetailing.bbsr@gmail.com',
     address: config.studio?.address || 'Plot no - 55, Pahala, Before Utkal Mahindra Service, Bhubaneswar, Odisha 752101',
@@ -31,7 +31,7 @@ export const STUDIO_CONFIG = {
   // ==========================================
   bot_messages: {
     // Asked when user first messages the bot
-    welcome_text: 'Hi! Which service are you looking for today? 🚗✨',
+    welcome_text: 'Which service are you looking for today? 🚗✨',
     
     // Asked on Instagram to get phone number
     phone_prompt_ig: 'Please share your 10-digit mobile number:',
@@ -48,7 +48,7 @@ export const STUDIO_CONFIG = {
     
     // Comment Automation
     comment_public_reply: 'Hi @{{username}}! Check your DM 📩',
-    comment_private_dm: 'Hi! Which service are you looking for today? 🚗✨',
+    comment_private_dm: 'Which service are you looking for today? 🚗✨',
   },
 
   // ==========================================

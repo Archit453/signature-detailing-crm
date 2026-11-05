@@ -204,6 +204,45 @@ export async function sendInstagramOutboundMessage(recipientId, text, options = 
 }
 
 /**
+ * Dispatches the native Instagram Interactive Action Card with 3 buttons (View Packages, WhatsApp Us, Studio Location)
+ * Matching Image 2 design
+ */
+export async function sendInstagramActionCard(recipientId, {
+  title = 'Signature Detailing Bhubaneswar 🚗✨',
+  subtitle = 'Explore packages, PPF, ceramics & studio pricing',
+  websiteUrl = 'https://signature-detailing.pages.dev/',
+  ownerPhone = '+91 84568 69931',
+  mapsUrl = 'https://maps.app.goo.gl/TP4S4MommkGLpAzP7',
+} = {}) {
+  const cleanPhone = String(ownerPhone || '').replace(/\D/g, '') || '918456869931';
+  const elements = [
+    {
+      title: title.slice(0, 80),
+      subtitle: subtitle.slice(0, 80),
+      buttons: [
+        {
+          type: 'web_url',
+          title: '🌐 View Packages',
+          url: websiteUrl || 'https://signature-detailing.pages.dev/',
+        },
+        {
+          type: 'web_url',
+          title: '💬 WhatsApp Us',
+          url: `https://wa.me/${cleanPhone}`,
+        },
+        {
+          type: 'web_url',
+          title: '📍 Studio Location',
+          url: mapsUrl || 'https://maps.app.goo.gl/TP4S4MommkGLpAzP7',
+        },
+      ],
+    },
+  ];
+
+  return await sendInstagramOutboundMessage(recipientId, title, { elements });
+}
+
+/**
  * Dispatches an interactive Studio Location Generic Template Card with clickable web_url buttons
  * (Fixes external links appearing as plain unclickable text on Instagram)
  */
@@ -582,10 +621,14 @@ export async function handleIncomingInstagramComment(commentData, entryAccountId
   }
 
   // Guard 5: Self-Reply Protection (Dynamic - protects ANY connected client account)
-  const integrations = await getSetting('integrations');
+  const [integrations, generalSettings] = await Promise.all([
+    getSetting('integrations'),
+    getSetting('general'),
+  ]);
   const token = integrations?.instagram?.page_access_token || config.instagram.pageAccessToken;
   const pageId = String(integrations?.instagram?.page_id || config.instagram.pageId || '');
   const connectedUsername = await getConnectedAccountUsername(token);
+  const configuredOwnerHandle = (generalSettings?.owner_instagram || config.studio?.ownerInstagram || config.owner?.instagramUsername || '').toLowerCase().replace(/^@/, '');
 
   const isOwnAccount =
     Boolean(
@@ -600,12 +643,8 @@ export async function handleIncomingInstagramComment(commentData, entryAccountId
       )
     ) ||
     Boolean(
-      fromUsername && (
-        fromUsername.toLowerCase() === 'signaturedetailing' ||
-        fromUsername.toLowerCase() === 'signaturedetailing.bbsr' ||
-        fromUsername.toLowerCase() === 'signaturedetailingbbsr' ||
-        fromUsername.toLowerCase() === 'signaturedetailing_official' ||
-        fromUsername.toLowerCase() === 'signature_detailing'
+      fromUsername && configuredOwnerHandle && (
+        fromUsername.toLowerCase() === configuredOwnerHandle
       )
     );
 

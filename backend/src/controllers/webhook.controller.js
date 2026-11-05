@@ -252,14 +252,21 @@ export async function handleInstagramWebhook(req, res) {
             } catch (pErr) {}
           }
 
-          const isOwnerSender =
-            (profileUsername && (profileUsername.toLowerCase() === 'das_vineet11' || profileUsername.toLowerCase().includes('vineet'))) ||
-            (profileName && (profileName.toLowerCase().includes('das_vineet11') || profileName.toLowerCase().includes('vineet das')));
+          const generalSettings = (await getSetting('general')) || {};
+          const configuredOwnerHandle = (generalSettings.owner_instagram || config.studio?.ownerInstagram || config.owner?.instagramUsername || '').toLowerCase().replace(/^@/, '');
+          const configuredOwnerName = generalSettings.owner_name || config.studio?.ownerName || config.owner?.name || 'Owner';
+
+          const isOwnerSender = Boolean(
+            configuredOwnerHandle && (
+              (profileUsername && profileUsername.toLowerCase() === configuredOwnerHandle) ||
+              (profileName && profileName.toLowerCase().includes(configuredOwnerHandle))
+            )
+          );
 
           if (isOwnerSender) {
-            console.log(`[Owner Guard] Vineet Das (@${profileUsername || 'das_vineet11'}) messaged. Stopping bot.`);
-            const customer = await findOrCreateCustomer({ instagramId: senderId, name: 'Vineet Das (Owner)' });
-            const conversation = await findOrCreateInstagramConversation(customer.id, senderId, 'Vineet Das (@das_vineet11)');
+            console.log(`[Owner Guard] Account owner (@${configuredOwnerHandle}) messaged. Stopping bot.`);
+            const customer = await findOrCreateCustomer({ instagramId: senderId, name: `${configuredOwnerName} (Owner)` });
+            const conversation = await findOrCreateInstagramConversation(customer.id, senderId, `${configuredOwnerName} (@${configuredOwnerHandle})`);
             await updateConversationState(conversation.id, {
               bot_active: false,
               bot_paused_reason: 'owner_takeover',

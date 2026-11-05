@@ -36,17 +36,17 @@ export const config = {
   },
 
   owner: {
-    phone: (process.env.OWNER_PHONE || '917008426671').trim(),
-    instagramUsername: 'das_vineet11',
-    name: 'Vineet Das',
+    phone: (process.env.OWNER_PHONE || '+91 84568 69931').trim(),
+    instagramUsername: (process.env.OWNER_INSTAGRAM || 'das_vineet11').trim().replace(/^@/, ''),
+    name: (process.env.OWNER_NAME || 'Owner').trim(),
   },
 
   studio: {
     name: (process.env.STUDIO_NAME || 'Signature Detailing').trim(),
     phone: (process.env.STUDIO_PHONE || '+91 98612 01770').trim(),
-    ownerPhone: (process.env.OWNER_PHONE || '917008426671').trim(),
-    ownerInstagram: 'das_vineet11',
-    ownerName: 'Vineet Das',
+    ownerPhone: (process.env.OWNER_PHONE || '+91 84568 69931').trim(),
+    ownerInstagram: (process.env.OWNER_INSTAGRAM || 'das_vineet11').trim().replace(/^@/, ''),
+    ownerName: (process.env.OWNER_NAME || 'Owner').trim(),
     email: (process.env.STUDIO_EMAIL || 'signaturedetailing.bbsr@gmail.com').trim(),
     address: (process.env.STUDIO_ADDRESS || 'Plot no - 55, Pahala, Before Utkal Mahindra Service, Bhubaneswar, Odisha 752101').trim(),
     websiteUrl: (process.env.STUDIO_WEBSITE || 'https://signature-detailing.pages.dev/').trim(),

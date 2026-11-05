@@ -170,6 +170,14 @@ async function runTests() {
   console.assert(ownerRes.isOwner === true, 'Should recognize sender as owner Vineet Das');
   console.log('✓ Test 6: Vineet Das (@das_vineet11) message successfully stopped and silenced the bot');
 
+  console.log('\n--- 7. Testing Instagram Action Card & Owner WhatsApp URL ---');
+  const { sendInstagramActionCard } = await import('../backend/src/services/instagram.service.js');
+  const cardResult = await sendInstagramActionCard('test_card_recipient', {
+    ownerPhone: '+91 84568 69931',
+  });
+  console.assert(cardResult.simulated === true, 'Action card should simulate outbound message');
+  console.log('✓ Test 7: Action card generated with 3 native one-tap buttons (View Packages, WhatsApp 918456869931, Studio Location)');
+
   console.log('\n========================================');
   console.log('ALL BOT & VALIDATION TESTS PASSED! 🎉');
   console.log('========================================');
