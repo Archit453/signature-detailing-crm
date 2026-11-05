@@ -279,9 +279,41 @@ export async function diagnoseInstagramIntegration(req, res) {
 
   // 1. Check graph.facebook.com/me
   try {
-    const r1 = await fetch(`https://graph.facebook.com/v21.0/me?fields=id,name,username&access_token=${encodeURIComponent(token)}`);
+    const r1 = await fetch(`https://graph.facebook.com/v21.0/me?fields=id,name&access_token=${encodeURIComponent(token)}`);
     results.tests['facebook_me'] = { status: r1.status, data: await r1.json() };
   } catch (e) { results.tests['facebook_me'] = { error: e.message }; }
+
+  // 1b. Check graph.facebook.com/1044542855126226 (Original Page ID)
+  try {
+    const r1b = await fetch(`https://graph.facebook.com/v21.0/1044542855126226?fields=id,name,instagram_business_account{id,username}&access_token=${encodeURIComponent(token)}`);
+    results.tests['facebook_original_page'] = { status: r1b.status, data: await r1b.json() };
+  } catch (e) { results.tests['facebook_original_page'] = { error: e.message }; }
+
+  // 1c. Test dispatch via 1044542855126226/messages
+  try {
+    const r1c = await fetch(`https://graph.facebook.com/v21.0/1044542855126226/messages?access_token=${encodeURIComponent(token)}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        recipient: { id: testRecipient },
+        message: { text: 'Test via 1044542855126226' }
+      })
+    });
+    results.tests['dispatch_via_1044542855126226'] = { status: r1c.status, data: await r1c.json() };
+  } catch (e) { results.tests['dispatch_via_1044542855126226'] = { error: e.message }; }
+
+  // 1d. Test dispatch via graph.instagram.com/v21.0/me/messages
+  try {
+    const r1d = await fetch(`https://graph.instagram.com/v21.0/me/messages?access_token=${encodeURIComponent(token)}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        recipient: { id: testRecipient },
+        message: { text: 'Test via graph.instagram.com' }
+      })
+    });
+    results.tests['dispatch_via_graph_instagram'] = { status: r1d.status, data: await r1d.json() };
+  } catch (e) { results.tests['dispatch_via_graph_instagram'] = { error: e.message }; }
 
   // 2. Check graph.facebook.com/{pageId}
   try {
