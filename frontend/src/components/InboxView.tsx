@@ -23,6 +23,28 @@ interface InboxViewProps {
   initialCustomerId?: string | null;
 }
 
+function formatMessagePreview(text?: string | null): string {
+  if (!text) return 'No messages yet';
+  if (text.startsWith('SERVICE_')) {
+    const raw = text.replace('SERVICE_', '');
+    const serviceLabels: Record<string, string> = {
+      ceramic: '✨ Selected: Ceramic Coating',
+      ppf: '🛡️ Selected: Paint Protection Film (PPF)',
+      interior: '🧼 Selected: Deep Interior Spa',
+      rubbing: '✨ Selected: Paint Correction & Polish',
+      graphene: '⚡ Selected: Graphene Coating',
+    };
+    return serviceLabels[raw] || `✨ Selected: ${raw.charAt(0).toUpperCase() + raw.slice(1)}`;
+  }
+  if (text === 'ACTION_SERVICES') return '🚗 Viewed Detailing Packages';
+  if (text === 'ACTION_LOCATION') return '📍 Asked for Studio Location';
+  if (text === 'ACTION_WEBSITE') return '🌐 Visited Studio Website';
+  if (text === 'ACTION_TALK_HUMAN') return '👤 Requested Specialist Callback';
+  if (text === 'PHONE_CHANGE') return '📱 Requested Phone Number Change';
+  if (text === 'START_FLOW') return '👋 Started Detailing Inquiry';
+  return text;
+}
+
 export const InboxView: React.FC<InboxViewProps> = ({ initialCustomerId }) => {
   const { theme } = useTheme();
   const isLight = theme === 'light';
@@ -258,11 +280,13 @@ export const InboxView: React.FC<InboxViewProps> = ({ initialCustomerId }) => {
                   ? `${conv.customer!.vehicles![0].make} ${conv.customer!.vehicles![0].model}`
                   : null;
 
-                const displayName = (conv.customer?.name && conv.customer.name !== 'Customer')
+                const displayName = (conv.customer?.name && conv.customer.name !== 'Customer' && conv.customer.name !== 'Instagram User')
                   ? conv.customer.name
-                  : (isWA && conv.channel_user_id
-                      ? `+91 ${conv.channel_user_id.replace(/\D/g, '').slice(-10)}`
-                      : (conv.channel === 'instagram' ? 'Instagram User' : 'Customer'));
+                  : (conv.customer_name && conv.customer_name !== 'Customer' && conv.customer_name !== 'Instagram User')
+                    ? conv.customer_name
+                    : (isWA && conv.channel_user_id
+                        ? `+91 ${conv.channel_user_id.replace(/\D/g, '').slice(-10)}`
+                        : (conv.channel === 'instagram' ? 'Instagram User' : 'Customer'));
 
                 // Clean initial for avatar
                 const isPhoneTitle = displayName.startsWith('+');
@@ -331,7 +355,7 @@ export const InboxView: React.FC<InboxViewProps> = ({ initialCustomerId }) => {
                             isLight ? 'text-slate-500' : 'text-[#8E92A0]'
                           }`}
                         >
-                          {conv.last_message_preview || 'No messages yet'}
+                          {formatMessagePreview(conv.last_message_preview)}
                         </p>
                       </div>
                     </div>
@@ -441,11 +465,13 @@ export const InboxView: React.FC<InboxViewProps> = ({ initialCustomerId }) => {
                   <h3 className={`text-sm font-semibold truncate max-w-[200px] ${
                     isLight ? 'text-slate-900' : 'text-white'
                   }`}>
-                    {(selectedConversation.customer?.name && selectedConversation.customer.name !== 'Customer')
+                    {(selectedConversation.customer?.name && selectedConversation.customer.name !== 'Customer' && selectedConversation.customer.name !== 'Instagram User')
                       ? selectedConversation.customer.name
-                      : (selectedConversation.channel === 'whatsapp' && selectedConversation.channel_user_id
-                          ? `+91 ${selectedConversation.channel_user_id.replace(/\D/g, '').slice(-10)}`
-                          : (selectedConversation.channel === 'instagram' ? 'Instagram User' : 'Customer'))}
+                      : (selectedConversation.customer_name && selectedConversation.customer_name !== 'Customer' && selectedConversation.customer_name !== 'Instagram User')
+                        ? selectedConversation.customer_name
+                        : (selectedConversation.channel === 'whatsapp' && selectedConversation.channel_user_id
+                            ? `+91 ${selectedConversation.channel_user_id.replace(/\D/g, '').slice(-10)}`
+                            : (selectedConversation.channel === 'instagram' ? 'Instagram User' : 'Customer'))}
                   </h3>
                   <span
                     className={`text-[9px] px-1.5 py-0.5 rounded-full font-semibold uppercase ${
@@ -536,7 +562,7 @@ export const InboxView: React.FC<InboxViewProps> = ({ initialCustomerId }) => {
                         <Lock className="w-3 h-3" />
                         <span>Team Whisper (Staff Only — Hidden from Client)</span>
                       </div>
-                      <p className="whitespace-pre-wrap">{msg.content}</p>
+                      <p className="whitespace-pre-wrap">{formatMessagePreview(msg.content)}</p>
                       <span className={`text-[9px] block text-right mt-1 ${isLight ? 'text-amber-700/60' : 'text-zinc-500'}`}>
                         {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                       </span>
@@ -567,7 +593,7 @@ export const InboxView: React.FC<InboxViewProps> = ({ initialCustomerId }) => {
                       </span>
                     )}
 
-                    <p className="whitespace-pre-wrap">{msg.content}</p>
+                    <p className="whitespace-pre-wrap">{formatMessagePreview(msg.content)}</p>
 
                     <div className={`flex items-center justify-end space-x-1 mt-1 text-[9px] ${
                       isOutbound && !isBot ? 'text-white/70' : isLight ? 'text-slate-400' : 'text-zinc-500'

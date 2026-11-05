@@ -55,10 +55,16 @@ export function withBotDisclaimer(text) {
 /**
  * Finds or initializes an Instagram conversation in Supabase or memory
  */
-export async function findOrCreateInstagramConversation(customerId, igsid) {
+export async function findOrCreateInstagramConversation(customerId, igsid, customerName = null) {
   const cleanId = String(igsid).replace(/^ig_/, '').trim();
   const cached = igConversationCache.get(cleanId);
   if (cached && cached.expiresAt > Date.now()) {
+    if (customerName && (!cached.conversation.customer_name || cached.conversation.customer_name === 'Instagram User' || cached.conversation.customer_name === 'Instagram Customer')) {
+      cached.conversation.customer_name = customerName;
+      if (isSupabaseConfigured && cached.conversation.id) {
+        supabase.from('conversations').update({ customer_name: customerName }).eq('id', cached.conversation.id).catch(() => {});
+      }
+    }
     return cached.conversation;
   }
 
@@ -68,6 +74,7 @@ export async function findOrCreateInstagramConversation(customerId, igsid) {
       conv = {
         id: `conv-ig-${cleanId}`,
         customer_id: customerId,
+        customer_name: customerName || 'Instagram User',
         channel: 'instagram',
         channel_user_id: cleanId,
         bot_active: true,
@@ -79,6 +86,8 @@ export async function findOrCreateInstagramConversation(customerId, igsid) {
         created_at: new Date().toISOString(),
       };
       inMemoryIgConversations.push(conv);
+    } else if (customerName && (!conv.customer_name || conv.customer_name === 'Instagram User' || conv.customer_name === 'Instagram Customer')) {
+      conv.customer_name = customerName;
     }
     igConversationCache.set(cleanId, { conversation: conv, expiresAt: Date.now() + IG_CONV_CACHE_TTL });
     return conv;
@@ -92,11 +101,17 @@ export async function findOrCreateInstagramConversation(customerId, igsid) {
     .maybeSingle();
 
   if (existing) {
+    if (customerName && (!existing.customer_name || existing.customer_name === 'Instagram User' || existing.customer_name === 'Instagram Customer')) {
+      existing.customer_name = customerName;
+      await supabase.from('conversations').update({ customer_name: customerName }).eq('id', existing.id);
+    }
     igConversationCache.set(cleanId, { conversation: existing, expiresAt: Date.now() + IG_CONV_CACHE_TTL });
     return existing;
   }
 
   const insertData = {
+    customer_id: customerId,
+    customer_name: customerName || 'Instagram User',
     channel: 'instagram',
     channel_user_id: cleanId,
     bot_active: true,
@@ -266,6 +281,33 @@ export async function buildInstagramServicesMenu() {
   };
 }
 
+export function formatFriendlyMessageText(input, services = []) {
+  if (!input || typeof input !== 'string') return input;
+  if (input.startsWith('SERVICE_')) {
+    const code = input.replace('SERVICE_', '');
+    const matched = (services || []).find((s) => s.short_code === code || s.id === code);
+    if (matched) return `✨ Selected: ${matched.name}`;
+    const friendlyCode = code.charAt(0).toUpperCase() + code.slice(1);
+    return `✨ Selected: ${friendlyCode}`;
+  }
+  switch (input) {
+    case 'ACTION_SERVICES':
+      return '🚗 Viewed Detailing Packages';
+    case 'ACTION_LOCATION':
+      return '📍 Asked for Studio Location';
+    case 'ACTION_WEBSITE':
+      return '🌐 Visited Studio Website';
+    case 'ACTION_TALK_HUMAN':
+      return '👤 Requested Specialist Callback';
+    case 'PHONE_CHANGE':
+      return '📱 Requested Phone Number Change';
+    case 'START_FLOW':
+      return '👋 Started Detailing Inquiry';
+    default:
+      return input;
+  }
+}
+
 /**
  * Main Qualification Bot Engine (Ultra-Fast Sub-Second Architecture)
  */
@@ -297,10 +339,11 @@ export async function processBotMessage({
     }),
   ]);
   const botConfig = botConfigRaw || {};
+  const displayInput = formatFriendlyMessageText(cleanInput, activeServices);
 
   const conversation = channel === 'whatsapp'
     ? await findOrCreateWhatsAppConversation(customer.id, channelUserId)
-    : await findOrCreateInstagramConversation(customer.id, channelUserId);
+    : await findOrCreateInstagramConversation(customer.id, channelUserId, profileName);
 
   // Human Takeover / Bot Paused Check
   if (!conversation.bot_active || conversation.bot_step === 'human_takeover') {
@@ -310,7 +353,7 @@ export async function processBotMessage({
       direction: 'inbound',
       senderType: 'customer',
       messageType: buttonPayload ? 'button_reply' : 'text',
-      content: cleanInput,
+      content: displayInput,
       metaMessageId,
     });
     return { handled: true, botPaused: true };
@@ -330,7 +373,7 @@ export async function processBotMessage({
 
     const dbPromise = logBotTurnMessages({
       conversationId: conversation.id,
-      inbound: { content: cleanInput, metaMessageId },
+      inbound: { content: displayInput, metaMessageId },
       outbound: { content: websiteMsg },
     });
 
@@ -362,7 +405,7 @@ export async function processBotMessage({
 
     const dbPromise = logBotTurnMessages({
       conversationId: conversation.id,
-      inbound: { content: cleanInput, metaMessageId },
+      inbound: { content: displayInput, metaMessageId },
       outbound: { content: locationMsg },
     });
 
@@ -389,7 +432,7 @@ export async function processBotMessage({
 
     const dbPromise = logBotTurnMessages({
       conversationId: conversation.id,
-      inbound: { content: cleanInput, metaMessageId },
+      inbound: { content: displayInput, metaMessageId },
       outbound: { content: askNewPhone },
       conversationUpdates: { bot_step: 'awaiting_phone_update' },
     });
@@ -442,7 +485,7 @@ export async function processBotMessage({
 
       const dbPromise = logBotTurnMessages({
         conversationId: conversation.id,
-        inbound: { content: cleanInput, metaMessageId },
+        inbound: { content: displayInput, metaMessageId },
         outbound: { content: confirmMsg },
         conversationUpdates: { bot_step: 'completed' },
       });
@@ -459,7 +502,7 @@ export async function processBotMessage({
 
     const dbPromise = logBotTurnMessages({
       conversationId: conversation.id,
-      inbound: { content: cleanInput, metaMessageId },
+      inbound: { content: displayInput, metaMessageId },
       outbound: { content: invalidText },
     });
 
@@ -501,7 +544,7 @@ export async function processBotMessage({
 
       const dbPromise = logBotTurnMessages({
         conversationId: conversation.id,
-        inbound: { content: cleanInput, metaMessageId },
+        inbound: { content: displayInput, metaMessageId },
         outbound: { content: botNotice },
       });
 
@@ -530,7 +573,7 @@ export async function processBotMessage({
     });
     const dbPromise = logBotTurnMessages({
       conversationId: conversation.id,
-      inbound: { content: cleanInput, metaMessageId },
+      inbound: { content: displayInput, metaMessageId },
       outbound: { content: welcomeText },
       conversationUpdates: {
         bot_step: nextStep,
@@ -586,7 +629,7 @@ export async function processBotMessage({
     });
     const dbPromise = logBotTurnMessages({
       conversationId: conversation.id,
-      inbound: { content: cleanInput, metaMessageId },
+      inbound: { content: displayInput, metaMessageId },
       outbound: { content: welcomeText },
       conversationUpdates: {
         bot_step: nextStep,
@@ -623,7 +666,7 @@ export async function processBotMessage({
 
       const dbPromise = logBotTurnMessages({
         conversationId: conversation.id,
-        inbound: { content: cleanInput, metaMessageId },
+        inbound: { content: displayInput, metaMessageId },
         outbound: { content: askPhoneMsg },
         conversationUpdates: {
           bot_step: 'awaiting_phone_input',
@@ -698,7 +741,7 @@ export async function processBotMessage({
 
       const dbPromise = logBotTurnMessages({
         conversationId: conversation.id,
-        inbound: { content: cleanInput, metaMessageId },
+        inbound: { content: displayInput, metaMessageId },
         outbound: { content: askNewPhone },
         conversationUpdates: { bot_step: 'awaiting_phone_input' },
       });
@@ -753,7 +796,7 @@ export async function processBotMessage({
 
     const dbPromise = logBotTurnMessages({
       conversationId: conversation.id,
-      inbound: { content: cleanInput, metaMessageId },
+      inbound: { content: displayInput, metaMessageId },
       outbound: { content: invalidText },
       conversationUpdates: { bot_step: 'awaiting_phone_input' },
     });
@@ -777,7 +820,7 @@ export async function processBotMessage({
 
   const dbPromise = logBotTurnMessages({
     conversationId: conversation.id,
-    inbound: { content: cleanInput, metaMessageId },
+    inbound: { content: displayInput, metaMessageId },
     outbound: { content: fallbackText },
   });
 
@@ -864,7 +907,7 @@ async function completeLeadCapture({
       }),
       logBotTurnMessages({
         conversationId: conversation.id,
-        inbound: { content: inboundInput, metaMessageId },
+        inbound: { content: formatFriendlyMessageText(inboundInput), metaMessageId },
         outbound: { content: `${completionMessage}\n\n${locationMsg}` },
         conversationUpdates: {
           bot_step: 'completed',

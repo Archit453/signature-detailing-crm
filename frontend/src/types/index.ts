@@ -53,6 +53,7 @@ export interface Lead {
 export interface Conversation {
   id: string;
   customer_id: string;
+  customer_name?: string | null;
   channel: 'whatsapp' | 'instagram';
   channel_user_id: string;
   bot_active: boolean;

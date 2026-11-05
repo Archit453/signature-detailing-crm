@@ -6,7 +6,33 @@ import {
   logWhatsAppMessage,
   updateConversationState,
 } from '../services/whatsapp.service.js';
-import { sendInstagramOutboundMessage, getRecentInstagramComments } from '../services/instagram.service.js';
+import {
+  sendInstagramOutboundMessage,
+  getRecentInstagramComments,
+  getInstagramUserProfile,
+} from '../services/instagram.service.js';
+
+function formatPreview(text) {
+  if (!text || typeof text !== 'string') return text;
+  if (text.startsWith('SERVICE_')) {
+    const rawCode = text.replace('SERVICE_', '');
+    const map = {
+      ceramic: '✨ Selected: Ceramic Coating',
+      ppf: '🛡️ Selected: Paint Protection Film (PPF)',
+      interior: '🧼 Selected: Deep Interior Spa',
+      rubbing: '✨ Selected: Paint Correction & Polish',
+      graphene: '⚡ Selected: Graphene Coating',
+    };
+    return map[rawCode] || `✨ Selected: ${rawCode.charAt(0).toUpperCase() + rawCode.slice(1)}`;
+  }
+  if (text === 'ACTION_SERVICES') return '🚗 Viewed Detailing Packages';
+  if (text === 'ACTION_LOCATION') return '📍 Asked for Studio Location';
+  if (text === 'ACTION_WEBSITE') return '🌐 Visited Studio Website';
+  if (text === 'ACTION_TALK_HUMAN') return '👤 Requested Specialist Callback';
+  if (text === 'PHONE_CHANGE') return '📱 Requested Phone Number Change';
+  if (text === 'START_FLOW') return '👋 Started Detailing Inquiry';
+  return text;
+}
 
 export async function listConversations(req, res) {
   const { channel = 'all' } = req.query;
@@ -55,7 +81,31 @@ export async function listConversations(req, res) {
     console.warn('[Inbox leads lookup note]', leadFetchErr.message);
   }
 
-  // 3. Format conversations with high-fidelity customer resolution
+  // 3. Concurrently resolve missing Instagram customer names in background
+  await Promise.all(
+    (data || []).map(async (conv) => {
+      if (
+        conv.channel === 'instagram' &&
+        (!conv.customer_name || conv.customer_name === 'Instagram User' || conv.customer_name === 'Instagram Customer') &&
+        conv.channel_user_id &&
+        /^\d+$/.test(conv.channel_user_id)
+      ) {
+        try {
+          const profile = await getInstagramUserProfile(conv.channel_user_id);
+          if (profile?.displayName) {
+            conv.customer_name = profile.displayName;
+            supabase
+              .from('conversations')
+              .update({ customer_name: profile.displayName })
+              .eq('id', conv.id)
+              .then(() => {}, () => {});
+          }
+        } catch (e) {}
+      }
+    })
+  );
+
+  // 4. Format conversations with high-fidelity customer resolution
   const formatted = (data || []).map((conv) => {
     const phoneClean = String(conv.channel_user_id || conv.customer_phone || '').replace(/[^0-9]/g, '');
     const matchedLead = conv.lead ||
@@ -105,6 +155,7 @@ export async function listConversations(req, res) {
     return {
       ...conv,
       customer_name: resolvedName,
+      last_message_preview: formatPreview(conv.last_message_preview),
       customer: {
         id: matchedLead?.id || conv.lead_id || conv.id,
         name: resolvedName,
@@ -173,11 +224,37 @@ export async function getConversationMessages(req, res) {
     }
   }
 
+  // Concurrently resolve missing Instagram user profile if needed
+  if (
+    conversation.channel === 'instagram' &&
+    (!conversation.customer_name || conversation.customer_name === 'Instagram User' || conversation.customer_name === 'Instagram Customer') &&
+    conversation.channel_user_id &&
+    /^\d+$/.test(conversation.channel_user_id)
+  ) {
+    try {
+      const profile = await getInstagramUserProfile(conversation.channel_user_id);
+      if (profile?.displayName) {
+        conversation.customer_name = profile.displayName;
+        supabase
+          .from('conversations')
+          .update({ customer_name: profile.displayName })
+          .eq('id', id)
+          .then(() => {}, () => {});
+      }
+    } catch (e) {}
+  }
+
+  const formattedMessages = finalMessages.map((msg) => ({
+    ...msg,
+    content: formatPreview(msg.content),
+  }));
+
   const formattedConversation = {
     ...conversation,
+    last_message_preview: formatPreview(conversation.last_message_preview),
     customer: {
       id: conversation.lead_id || conversation.id,
-      name: conversation.customer_name || lead?.customer_name || 'Customer',
+      name: conversation.customer_name || lead?.customer_name || (conversation.channel === 'instagram' ? 'Instagram User' : 'Customer'),
       phone: conversation.customer_phone || lead?.customer_phone || conversation.channel_user_id,
       vehicles,
     },
@@ -185,7 +262,7 @@ export async function getConversationMessages(req, res) {
 
   return successResponse(res, {
     conversation: formattedConversation,
-    messages: finalMessages,
+    messages: formattedMessages,
   });
 }
 

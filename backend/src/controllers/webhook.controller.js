@@ -1,7 +1,7 @@
 import { config } from '../config/env.js';
 import { getSetting } from '../services/settings.service.js';
 import { processBotMessage, findOrCreateInstagramConversation } from '../services/bot.service.js';
-import { handleIncomingInstagramComment } from '../services/instagram.service.js';
+import { handleIncomingInstagramComment, getInstagramUserProfile } from '../services/instagram.service.js';
 import { resolveMetaLeadGen, processIncomingAdLead } from '../services/leadAd.service.js';
 import {
   findOrCreateWhatsAppConversation,
@@ -243,12 +243,21 @@ export async function handleInstagramWebhook(req, res) {
             rawText = event.message.text;
           }
 
+          let profileName = null;
+          if (senderId && /^\d+$/.test(senderId)) {
+            try {
+              const profile = await getInstagramUserProfile(senderId);
+              if (profile?.displayName) profileName = profile.displayName;
+            } catch (pErr) {}
+          }
+
           if (rawText || buttonPayload) {
             await processBotMessage({
               channel: 'instagram',
               channelUserId: senderId,
               rawText,
               buttonPayload,
+              profileName,
               metaMessageId,
               accountId: entryAccountId,
             });

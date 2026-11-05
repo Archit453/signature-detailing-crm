@@ -52,6 +52,57 @@ async function getConnectedAccountUsername(token) {
 /**
  * Dispatches outbound DM to Instagram user via Meta Graph API
  */
+
+const igUserProfileCache = new Map();
+
+/**
+ * Resolves an Instagram user's real name and @username using their IGSID
+ */
+export async function getInstagramUserProfile(igsid, customToken = null) {
+  const cleanId = String(igsid || '').replace(/^ig_/, '').trim();
+  if (!cleanId || !/^\d+$/.test(cleanId)) return null;
+
+  const now = Date.now();
+  const cached = igUserProfileCache.get(cleanId);
+  if (cached && cached.expiry > now) {
+    return cached.profile;
+  }
+
+  const integrations = await getSetting('integrations');
+  const token = customToken || integrations?.instagram?.page_access_token || config.instagram.pageAccessToken;
+  if (!token) return null;
+
+  try {
+    const isIGToken = token.startsWith('IGAA') || token.startsWith('IGA');
+    const url = isIGToken
+      ? `https://graph.instagram.com/v21.0/${cleanId}?fields=name,username,profile_pic&access_token=${encodeURIComponent(token)}`
+      : `https://graph.facebook.com/v21.0/${cleanId}?fields=name,username,profile_pic&access_token=${encodeURIComponent(token)}`;
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 3500);
+    const res = await fetch(url, { signal: controller.signal });
+    clearTimeout(timeoutId);
+
+    if (res.ok) {
+      const data = await res.json();
+      const profile = {
+        id: data.id,
+        name: data.name || null,
+        username: data.username || null,
+        displayName: data.name && data.username
+          ? `${data.name} (@${data.username})`
+          : (data.username ? `@${data.username}` : (data.name || 'Instagram User')),
+        profilePic: data.profile_pic || null,
+      };
+      igUserProfileCache.set(cleanId, { profile, expiry: now + 30 * 60 * 1000 });
+      return profile;
+    }
+  } catch (err) {
+    // Non-blocking
+  }
+  return null;
+}
+
 export async function sendInstagramOutboundMessage(recipientId, text, options = {}) {
   const cleanId = String(recipientId || '').replace(/^ig_/, '').trim();
   if (!cleanId) return { simulated: true, error: 'Invalid recipient Instagram ID' };
