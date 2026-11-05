@@ -3,7 +3,7 @@ import { validateAndFormatPhone } from '../backend/src/utils/phoneValidator.js';
 
 async function runTests() {
   console.log('--- 1. Testing Phone Validator ---');
-
+  
   const shortPhone = validateAndFormatPhone('12345');
   console.assert(!shortPhone.isValid, 'Short phone should be invalid');
   console.log('✓ Rejects short phone');
@@ -39,35 +39,27 @@ async function runTests() {
   console.assert(res2.lead && res2.lead.status === 'new', 'Lead status should be new');
   console.log('✓ Step 2: 1-Tap Booking completed and lead registered:', res2.lead.service_name);
 
-  console.log('\n--- 3. Testing Instagram Interactive DM Flow ---');
+  console.log('\n--- 3. Testing Instagram Interactive DM Flow (1st Message Greeting -> Staff Takeover) ---');
+  const freshIgUser = `ig_unit_test_${Date.now()}`;
 
-  // Step 1: IG Greeting
+  // Step 1: IG 1st Message Greeting -> Dispatches carousel once, then automatically pauses bot for human takeover
   const igRes1 = await processBotMessage({
     channel: 'instagram',
-    channelUserId: 'ig_test_user_88',
+    channelUserId: freshIgUser,
     rawText: 'Hey',
   });
-  console.assert(igRes1.step === 'awaiting_service', 'IG should await service');
-  console.log('✓ IG Step 1: Carousel dispatched');
+  console.assert(igRes1.step === 'human_takeover', 'IG should transition to human_takeover after 1st message');
+  console.assert(igRes1.botPaused === true, 'Bot should be paused on Instagram after 1st message');
+  console.log('✓ IG Step 1: First message greeting dispatched & bot paused for human takeover');
 
-  // Step 2: IG Service Selected -> Prompts for 10-digit phone
+  // Step 2: Subsequent customer question -> Bot remains silenced, logged silently in CRM for staff
   const igRes2 = await processBotMessage({
     channel: 'instagram',
-    channelUserId: 'ig_test_user_88',
-    buttonPayload: 'SERVICE_ppf',
-    rawText: 'PPF',
+    channelUserId: freshIgUser,
+    rawText: 'What is the price of ceramic coating?',
   });
-  console.assert(igRes2.step === 'awaiting_phone_input', 'IG should await phone input');
-  console.log('✓ IG Step 2: Prompts user for 10-digit mobile number');
-
-  // Step 3: IG Phone Provided -> Completes Lead
-  const igRes3 = await processBotMessage({
-    channel: 'instagram',
-    channelUserId: 'ig_test_user_88',
-    rawText: '9820112345',
-  });
-  console.assert(igRes3.step === 'completed', 'IG should complete lead upon valid phone');
-  console.log('✓ IG Step 3: Phone captured and lead created in CRM');
+  console.assert(igRes2.botPaused === true, 'Bot should remain silenced for subsequent messages');
+  console.log('✓ IG Step 2: Subsequent messages logged silently without bot interruption');
 
   console.log('\n========================================');
   console.log('ALL BOT & VALIDATION TESTS PASSED! 🎉');

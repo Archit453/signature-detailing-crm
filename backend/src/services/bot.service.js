@@ -517,16 +517,30 @@ export async function processBotMessage({
       ? buildWhatsAppServicesList(activeServices).then((listPayload) => sendMetaWhatsAppMessage(channelUserId, welcomeText, { list: listPayload }))
       : buildInstagramServicesCarousel(activeServices).then((carouselElements) => sendInstagramOutboundMessage(channelUserId, welcomeText, { elements: carouselElements }));
 
-    Object.assign(conversation, { bot_step: 'awaiting_service' });
+    // On Instagram: Send first automated greeting/menu, then pause bot for human staff takeover
+    const isInstagram = channel === 'instagram';
+    const nextStep = isInstagram ? 'human_takeover' : 'awaiting_service';
+    const nextBotActive = !isInstagram;
+    const nextPauseReason = isInstagram ? 'first_message_takeover' : null;
+
+    Object.assign(conversation, {
+      bot_step: nextStep,
+      bot_active: nextBotActive,
+      bot_paused_reason: nextPauseReason,
+    });
     const dbPromise = logBotTurnMessages({
       conversationId: conversation.id,
       inbound: { content: cleanInput, metaMessageId },
       outbound: { content: welcomeText },
-      conversationUpdates: { bot_step: 'awaiting_service' },
+      conversationUpdates: {
+        bot_step: nextStep,
+        bot_active: nextBotActive,
+        bot_paused_reason: nextPauseReason,
+      },
     });
 
     await Promise.all([sendPromise, dbPromise]);
-    return { handled: true, step: 'awaiting_service' };
+    return { handled: true, step: nextStep, botPaused: isInstagram };
   }
 
   // Check if customer selected a service (via button payload, short code, or name match)
@@ -559,16 +573,30 @@ export async function processBotMessage({
       ? buildWhatsAppServicesList(activeServices).then((listPayload) => sendMetaWhatsAppMessage(channelUserId, welcomeText, { list: listPayload }))
       : buildInstagramServicesCarousel(activeServices).then((carouselElements) => sendInstagramOutboundMessage(channelUserId, welcomeText, { elements: carouselElements }));
 
-    Object.assign(conversation, { bot_step: 'awaiting_service' });
+    // On Instagram: Send first automated greeting/menu, then pause bot for human staff takeover
+    const isInstagram = channel === 'instagram';
+    const nextStep = isInstagram ? 'human_takeover' : 'awaiting_service';
+    const nextBotActive = !isInstagram;
+    const nextPauseReason = isInstagram ? 'first_message_takeover' : null;
+
+    Object.assign(conversation, {
+      bot_step: nextStep,
+      bot_active: nextBotActive,
+      bot_paused_reason: nextPauseReason,
+    });
     const dbPromise = logBotTurnMessages({
       conversationId: conversation.id,
       inbound: { content: cleanInput, metaMessageId },
       outbound: { content: welcomeText },
-      conversationUpdates: { bot_step: 'awaiting_service' },
+      conversationUpdates: {
+        bot_step: nextStep,
+        bot_active: nextBotActive,
+        bot_paused_reason: nextPauseReason,
+      },
     });
 
     await Promise.all([sendPromise, dbPromise]);
-    return { handled: true, step: 'awaiting_service' };
+    return { handled: true, step: nextStep, botPaused: isInstagram };
   }
 
   // =========================================================================

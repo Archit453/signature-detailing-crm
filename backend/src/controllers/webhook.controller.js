@@ -1,6 +1,6 @@
 import { config } from '../config/env.js';
 import { getSetting } from '../services/settings.service.js';
-import { processBotMessage } from '../services/bot.service.js';
+import { processBotMessage, findOrCreateInstagramConversation } from '../services/bot.service.js';
 import { handleIncomingInstagramComment } from '../services/instagram.service.js';
 import {
   findOrCreateWhatsAppConversation,
@@ -205,7 +205,28 @@ export async function handleInstagramWebhook(req, res) {
           if (!senderId) continue;
 
           // Skip echo messages from own page
-          if (event.message?.is_echo) continue;
+          // Mirror outbound reply from studio staff in Instagram app & pause bot (Human Takeover)
+          if (event.message?.is_echo) {
+            const customerId = event.recipient?.id;
+            const outboundText = event.message?.text || '[Media]';
+            if (customerId) {
+              const customer = await findOrCreateCustomer({ instagramId: customerId, name: 'Instagram Customer' });
+              const conversation = await findOrCreateInstagramConversation(customer.id, customerId);
+              await logWhatsAppMessage({
+                conversationId: conversation.id,
+                direction: 'outbound',
+                senderType: 'agent',
+                content: outboundText,
+                metaMessageId: event.message?.mid || `echo-ig-${Date.now()}`,
+              });
+              await updateConversationState(conversation.id, {
+                bot_active: false,
+                bot_paused_reason: 'instagram_echo',
+                bot_step: 'human_takeover',
+              });
+            }
+            continue;
+          }
 
           const metaMessageId = event.message?.mid || event.postback?.mid;
           let rawText = '';
