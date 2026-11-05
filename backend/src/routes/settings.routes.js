@@ -9,6 +9,7 @@ import {
   getReviewSettings,
   saveReviewSettings,
   pruneMessagesHandler,
+  subscribeLeadAdsWebhook,
 } from '../controllers/settings.controller.js';
 
 const router = Router();
@@ -19,6 +20,7 @@ router.get('/bot-messages', getBotMessages);
 router.post('/bot-messages', saveBotMessages);
 router.get('/integrations', getIntegrations);
 router.post('/integrations', saveIntegrations);
+router.post('/instagram/subscribe-lead-ads', subscribeLeadAdsWebhook);
 router.get('/reviews', getReviewSettings);
 router.post('/reviews', saveReviewSettings);
 router.post('/database/prune', pruneMessagesHandler);

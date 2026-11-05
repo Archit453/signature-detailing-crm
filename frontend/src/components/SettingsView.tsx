@@ -23,7 +23,9 @@ import {
   Smartphone,
   Share2,
   Target,
-  Sparkles
+  Sparkles,
+  ExternalLink,
+  Zap
 } from 'lucide-react';
 import { InstagramIcon, WhatsAppIcon } from './Icons';
 import { api } from '../lib/api';
@@ -169,20 +171,52 @@ export const SettingsView: React.FC = () => {
     }
   };
 
+  const [subscribingAds, setSubscribingAds] = useState(false);
+  const [subscribingAdsResult, setSubscribingAdsResult] = useState<{ success: boolean; msg: string; tip?: string } | null>(null);
+
+  const [testLeadForm, setTestLeadForm] = useState({
+    name: 'Rahul Sharma (Test Ad Lead)',
+    phone: '9861201770',
+    service: 'Ceramic Coating',
+    vehicle: 'Mahindra Thar Roxx',
+    email: 'rahul.thar@example.com',
+  });
+
+  const handleAutoSubscribeLeadAds = async () => {
+    setSubscribingAds(true);
+    setSubscribingAdsResult(null);
+    try {
+      const res = await api.subscribeLeadAds();
+      if (res && res.success) {
+        setSubscribingAdsResult({
+          success: true,
+          msg: 'Page successfully subscribed to Lead Ads Webhooks (leadgen field active)!',
+        });
+      } else {
+        setSubscribingAdsResult({
+          success: false,
+          msg: res?.error || 'Meta API rejected subscription',
+          tip: res?.tip || 'Ensure your Meta App has the "leads_retrieval" and "pages_manage_ads" permissions granted in Meta App Review / Permissions.',
+        });
+      }
+    } catch (err: any) {
+      setSubscribingAdsResult({
+        success: false,
+        msg: err.message || 'Network error communicating with server',
+      });
+    } finally {
+      setSubscribingAds(false);
+    }
+  };
+
   const handleSimulateAdLead = async () => {
     setAdLeadSimStatus('simulating');
     setAdLeadSimMsg('');
     try {
-      const res = await api.simulateAdLead({
-        name: 'Rahul Sharma (Test Ad Lead)',
-        phone: '9861201770',
-        service: 'Ceramic Coating',
-        vehicle: 'Mahindra Thar Roxx',
-        email: 'rahul.thar@example.com',
-      });
+      const res = await api.simulateAdLead(testLeadForm);
       if (res && res.success) {
         setAdLeadSimStatus('success');
-        setAdLeadSimMsg(`Captured Lead #${res.lead?.id ? String(res.lead.id).slice(0, 8) : 'OK'}! Check Leads Kanban Board.`);
+        setAdLeadSimMsg(`Captured Lead #${res.lead?.id ? String(res.lead.id).slice(0, 8) : 'OK'} for ${testLeadForm.name}! Check Leads Kanban & Inbox.`);
       } else {
         setAdLeadSimStatus('error');
         setAdLeadSimMsg('Simulation failed');
@@ -950,37 +984,241 @@ export const SettingsView: React.FC = () => {
               </div>
             </div>
 
-            {/* Instagram Lead Ads Guide */}
+            {/* Instagram Lead Ads (Instant Forms) Guide */}
             <div className={`p-6 rounded-2xl border ${
               isLight ? 'bg-white border-slate-200 shadow-sm' : 'bg-slate-900/50 border-slate-800'
             }`}>
-              <div className="flex items-center gap-2.5 pb-4 border-b border-slate-200 dark:border-slate-800">
-                <div className="w-8 h-8 rounded-lg bg-indigo-500/10 flex items-center justify-center shrink-0">
-                  <Target className="w-4 h-4 text-indigo-500" />
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-200 dark:border-slate-800">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-9 h-9 rounded-xl bg-indigo-500/10 flex items-center justify-center shrink-0">
+                    <Target className="w-5 h-5 text-indigo-500" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h3 className="font-bold text-base text-indigo-500">Instagram & Facebook Lead Ads (Instant Forms)</h3>
+                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-500 font-bold border border-indigo-500/20">
+                        Live Connection
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-400 mt-0.5">
+                      Direct real-time lead capture from Instagram Ads into CRM with instant WhatsApp confirmation.
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <h3 className="font-bold text-base text-indigo-500">Instagram Lead Ads (Instant Forms) Guide</h3>
-                  <p className="text-xs text-slate-400">Direct lead capture from Instagram & Facebook Ads into CRM.</p>
+
+                <div className="flex items-center gap-2 self-start sm:self-auto">
+                  <button
+                    onClick={handleAutoSubscribeLeadAds}
+                    disabled={subscribingAds}
+                    className="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-indigo-600 text-white hover:bg-indigo-500 transition-all flex items-center gap-1.5 shadow-sm disabled:opacity-60"
+                  >
+                    <Zap className={`w-3.5 h-3.5 ${subscribingAds ? 'animate-spin' : ''}`} />
+                    <span>{subscribingAds ? 'Subscribing...' : 'Auto-Subscribe Page'}</span>
+                  </button>
+
+                  <a
+                    href="https://developers.facebook.com/apps/"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="px-3 py-1.5 rounded-xl text-xs font-semibold border border-slate-200 dark:border-slate-700 hover:border-indigo-500 transition-colors text-slate-700 dark:text-slate-300 flex items-center gap-1"
+                  >
+                    <span>Meta Apps</span>
+                    <ExternalLink className="w-3 h-3 text-slate-400" />
+                  </a>
                 </div>
               </div>
 
+              {subscribingAdsResult && (
+                <div className={`mt-4 p-3.5 rounded-xl text-xs border leading-relaxed ${
+                  subscribingAdsResult.success
+                    ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400'
+                    : 'bg-amber-500/10 border-amber-500/30 text-amber-600 dark:text-amber-400'
+                }`}>
+                  <div className="flex items-center gap-2 font-bold">
+                    {subscribingAdsResult.success ? <CheckCircle2 className="w-4 h-4 shrink-0" /> : <AlertCircle className="w-4 h-4 shrink-0" />}
+                    <span>{subscribingAdsResult.msg}</span>
+                  </div>
+                  {subscribingAdsResult.tip && (
+                    <div className="mt-1 ml-6 text-[11px] text-slate-500 dark:text-slate-400">
+                      💡 {subscribingAdsResult.tip}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Copyable Webhook Credentials Box */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 mt-5 text-xs">
+                <div className={`p-3.5 rounded-xl border ${isLight ? 'bg-slate-50 border-slate-200' : 'bg-slate-950/40 border-slate-800'}`}>
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="font-semibold text-slate-700 dark:text-slate-200">1. Webhook Callback URL (Meta Portal)</span>
+                    <span className="text-[10px] text-indigo-500 font-mono font-bold">Field: leadgen</span>
+                  </div>
+                  <div className="flex items-center justify-between mt-1.5 p-2 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
+                    <code className="font-mono text-[11px] text-slate-800 dark:text-slate-200 truncate mr-2 select-all">
+                      {instagramWebhookUrl}
+                    </code>
+                    <CopyButton id="guide-ig-webhook" text={instagramWebhookUrl} />
+                  </div>
+                </div>
+
+                <div className={`p-3.5 rounded-xl border ${isLight ? 'bg-slate-50 border-slate-200' : 'bg-slate-950/40 border-slate-800'}`}>
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="font-semibold text-slate-700 dark:text-slate-200">2. Verify Token</span>
+                    <span className="text-[10px] text-slate-400 font-mono">Secret Handshake</span>
+                  </div>
+                  <div className="flex items-center justify-between mt-1.5 p-2 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
+                    <code className="font-mono text-[11px] font-bold text-pink-500 truncate mr-2 select-all">
+                      {tokenInputs.instagram_verify_token}
+                    </code>
+                    <CopyButton id="guide-ig-token" text={tokenInputs.instagram_verify_token} />
+                  </div>
+                </div>
+              </div>
+
+              {/* Step-by-Step Checklist */}
               <div className="mt-5 space-y-3 text-xs">
                 <div className={`p-4 rounded-xl border ${isLight ? 'bg-slate-50 border-slate-200' : 'bg-slate-950/40 border-slate-800'}`}>
-                  <div className="font-bold text-sm text-slate-900 dark:text-white mb-1">
-                    1. Subscribe to the 'leadgen' Webhook on Meta
+                  <div className="font-bold text-sm text-slate-900 dark:text-white mb-1.5 flex items-center gap-2">
+                    <span className="w-5 h-5 rounded-full bg-indigo-500/20 text-indigo-500 flex items-center justify-center text-xs font-mono">1</span>
+                    Configure Webhook on Meta Developer Dashboard
                   </div>
-                  <p className="text-slate-500 dark:text-slate-400 leading-relaxed">
-                    In <a href="https://developers.facebook.com" target="_blank" rel="noreferrer" className="text-indigo-500 underline">Meta Developer Portal</a>, go to <strong>Your App → Webhooks → Page</strong> (or Instagram). Add Callback URL <code className="bg-slate-200 dark:bg-slate-800 px-1 rounded">{instagramWebhookUrl}</code> and subscribe to the <strong>leadgen</strong> field.
-                  </p>
+                  <ol className="list-decimal ml-8 mt-1 space-y-1.5 text-slate-600 dark:text-slate-300 leading-relaxed">
+                    <li>
+                      Open <a href="https://developers.facebook.com/apps/" target="_blank" rel="noreferrer" className="text-indigo-500 underline font-medium">Meta Developer Portal</a> and select your registered App.
+                    </li>
+                    <li>
+                      In the left sidebar, click <strong>Webhooks</strong>. At the top dropdown, switch the object to <strong>Page</strong>.
+                    </li>
+                    <li>
+                      Click <strong>Subscribe to this object</strong> (or <em>Edit Subscription</em>). Paste the <strong>Callback URL</strong> and <strong>Verify Token</strong> above, then click <strong>Verify and Save</strong>.
+                    </li>
+                    <li>
+                      In the fields table below, locate <strong>leadgen</strong> and click <strong>Subscribe</strong>.
+                    </li>
+                    <li>
+                      Under <em>"Hooking up your Page"</em>, select your Facebook Page and click <strong>Subscribe</strong> (or click the <strong>Auto-Subscribe Page</strong> button above!).
+                    </li>
+                  </ol>
                 </div>
 
                 <div className={`p-4 rounded-xl border ${isLight ? 'bg-slate-50 border-slate-200' : 'bg-slate-950/40 border-slate-800'}`}>
-                  <div className="font-bold text-sm text-slate-900 dark:text-white mb-1">
-                    2. Test Free in 30 Seconds with Meta Lead Ads Testing Tool
+                  <div className="font-bold text-sm text-slate-900 dark:text-white mb-1.5 flex items-center gap-2">
+                    <span className="w-5 h-5 rounded-full bg-indigo-500/20 text-indigo-500 flex items-center justify-center text-xs font-mono">2</span>
+                    Required Meta App Permissions
                   </div>
-                  <p className="text-slate-500 dark:text-slate-400 leading-relaxed">
-                    Visit <a href="https://developers.facebook.com/tools/lead-ads-testing" target="_blank" rel="noreferrer" className="text-indigo-500 underline">Meta Lead Ads Testing Tool</a>, select your Page and Instant Form, and click <strong>Create Lead</strong>. Or use the <strong>Simulate Lead</strong> button in the Webhooks tab above!
+                  <p className="text-slate-500 dark:text-slate-400 ml-7 leading-relaxed">
+                    Ensure your connected Meta User / System User token has these 3 permissions granted:
                   </p>
+                  <div className="flex flex-wrap gap-2 ml-7 mt-2">
+                    <span className="px-2 py-0.5 rounded bg-indigo-500/10 text-indigo-500 font-mono text-[11px] font-semibold border border-indigo-500/20">leads_retrieval</span>
+                    <span className="px-2 py-0.5 rounded bg-indigo-500/10 text-indigo-500 font-mono text-[11px] font-semibold border border-indigo-500/20">pages_manage_ads</span>
+                    <span className="px-2 py-0.5 rounded bg-indigo-500/10 text-indigo-500 font-mono text-[11px] font-semibold border border-indigo-500/20">pages_show_list</span>
+                  </div>
+                </div>
+
+                {/* Interactive Live Lead Simulator Form */}
+                <div className={`p-4 rounded-xl border ${isLight ? 'bg-indigo-50/50 border-indigo-200' : 'bg-indigo-950/20 border-indigo-800/50'}`}>
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
+                    <div className="flex items-center gap-2">
+                      <Sparkles className="w-4 h-4 text-indigo-500" />
+                      <span className="font-bold text-sm text-slate-900 dark:text-white">
+                        Test Ad Lead Ingestion (Sandbox & Live Simulation)
+                      </span>
+                    </div>
+
+                    <a
+                      href="https://developers.facebook.com/tools/lead-ads-testing"
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-xs text-indigo-500 hover:underline flex items-center gap-1 font-semibold"
+                    >
+                      <span>Official Meta Testing Tool</span>
+                      <ExternalLink className="w-3 h-3" />
+                    </a>
+                  </div>
+
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mb-3 leading-relaxed">
+                    Customize test lead values and click <strong>Send Test Lead</strong> to verify instant WhatsApp greeting and CRM lead capture:
+                  </p>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 mb-3">
+                    <div>
+                      <label className="block text-[11px] font-medium text-slate-400 mb-1">Prospect Name</label>
+                      <input
+                        type="text"
+                        value={testLeadForm.name}
+                        onChange={(e) => setTestLeadForm({ ...testLeadForm, name: e.target.value })}
+                        className={`w-full px-3 py-1.5 text-xs rounded-lg border ${
+                          isLight ? 'bg-white border-slate-200 text-slate-900' : 'bg-slate-900 border-slate-700 text-white'
+                        }`}
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-medium text-slate-400 mb-1">WhatsApp Mobile Number</label>
+                      <input
+                        type="text"
+                        value={testLeadForm.phone}
+                        onChange={(e) => setTestLeadForm({ ...testLeadForm, phone: e.target.value })}
+                        className={`w-full px-3 py-1.5 text-xs rounded-lg border ${
+                          isLight ? 'bg-white border-slate-200 text-slate-900' : 'bg-slate-900 border-slate-700 text-white'
+                        }`}
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-medium text-slate-400 mb-1">Vehicle Make / Model</label>
+                      <input
+                        type="text"
+                        value={testLeadForm.vehicle}
+                        onChange={(e) => setTestLeadForm({ ...testLeadForm, vehicle: e.target.value })}
+                        className={`w-full px-3 py-1.5 text-xs rounded-lg border ${
+                          isLight ? 'bg-white border-slate-200 text-slate-900' : 'bg-slate-900 border-slate-700 text-white'
+                        }`}
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-medium text-slate-400 mb-1">Selected Service</label>
+                      <select
+                        value={testLeadForm.service}
+                        onChange={(e) => setTestLeadForm({ ...testLeadForm, service: e.target.value })}
+                        className={`w-full px-3 py-1.5 text-xs rounded-lg border ${
+                          isLight ? 'bg-white border-slate-200 text-slate-900' : 'bg-slate-900 border-slate-700 text-white'
+                        }`}
+                      >
+                        <option value="Ceramic Coating">Ceramic Coating</option>
+                        <option value="PPF (Paint Protection Film)">Paint Protection Film (PPF)</option>
+                        <option value="Deep Interior Spa">Deep Interior Spa</option>
+                        <option value="Paint Correction & Polish">Paint Correction & Polish</option>
+                        <option value="Graphene Coating">Graphene Coating</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between pt-1">
+                    <button
+                      onClick={handleSimulateAdLead}
+                      disabled={adLeadSimStatus === 'simulating'}
+                      className="px-4 py-2 rounded-xl text-xs font-bold bg-indigo-600 text-white hover:bg-indigo-500 transition-all flex items-center gap-1.5 shadow-sm disabled:opacity-60"
+                    >
+                      <Sparkles className={`w-3.5 h-3.5 ${adLeadSimStatus === 'simulating' ? 'animate-spin' : ''}`} />
+                      <span>{adLeadSimStatus === 'simulating' ? 'Simulating...' : 'Send Test Lead'}</span>
+                    </button>
+
+                    {adLeadSimStatus === 'success' && (
+                      <div className="p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-xs flex items-center gap-1.5 font-medium">
+                        <CheckCircle2 className="w-4 h-4 shrink-0" />
+                        <span>{adLeadSimMsg}</span>
+                      </div>
+                    )}
+                    {adLeadSimStatus === 'error' && (
+                      <div className="p-2 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-500 text-xs flex items-center gap-1.5 font-medium">
+                        <AlertCircle className="w-4 h-4 shrink-0" />
+                        <span>{adLeadSimMsg}</span>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>

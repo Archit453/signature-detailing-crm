@@ -1,5 +1,7 @@
 import { getSetting, updateSetting } from '../services/settings.service.js';
 import { successResponse } from '../utils/apiResponse.js';
+import { ApiError } from '../utils/apiError.js';
+import { config } from '../config/env.js';
 
 let cachedIgMeta = null;
 let cachedIgMetaToken = '';
@@ -176,17 +178,17 @@ export async function saveIntegrations(req, res) {
 
   await updateSetting('integrations', merged);
 
-  // Auto-subscribe webhook fields (messages, comments, messaging_postbacks) on Meta
+  // Auto-subscribe webhook fields (messages, comments, messaging_postbacks, leadgen) on Meta
   if (merged.instagram?.page_access_token) {
     (async () => {
       try {
         const token = merged.instagram.page_access_token;
         const isIG = token.startsWith('IGAA') || token.startsWith('IGA');
         const url = isIG
-          ? `https://graph.instagram.com/v21.0/me/subscribed_apps?subscribed_fields=messages,comments,messaging_postbacks&access_token=${encodeURIComponent(token)}`
-          : `https://graph.facebook.com/v21.0/me/subscribed_apps?subscribed_fields=messages,comments,messaging_postbacks&access_token=${encodeURIComponent(token)}`;
+          ? `https://graph.instagram.com/v21.0/me/subscribed_apps?subscribed_fields=messages,comments,messaging_postbacks,leadgen&access_token=${encodeURIComponent(token)}`
+          : `https://graph.facebook.com/v21.0/me/subscribed_apps?subscribed_fields=messages,comments,messaging_postbacks,leadgen&access_token=${encodeURIComponent(token)}`;
         await fetch(url, { method: 'POST' });
-        console.log('[Auto-Subscribe Webhook] Successfully subscribed messages, comments, and messaging_postbacks on Meta');
+        console.log('[Auto-Subscribe Webhook] Successfully subscribed messages, comments, messaging_postbacks, and leadgen on Meta');
       } catch (subErr) {
         console.warn('[Auto-Subscribe Webhook Notice]', subErr.message);
       }
@@ -194,6 +196,50 @@ export async function saveIntegrations(req, res) {
   }
 
   return successResponse(res, { updated: true }, 'Integration settings saved successfully');
+}
+
+/**
+ * Triggers on-demand subscription of the Page to Meta Lead Ads Webhook
+ */
+export async function subscribeLeadAdsWebhook(req, res) {
+  const integrations = (await getSetting('integrations')) || {};
+  const token = integrations.instagram?.page_access_token || config.instagram?.pageAccessToken;
+
+  if (!token) {
+    throw new ApiError(400, 'No Instagram/Facebook Page Access Token found. Please save your Access Token first in Settings.');
+  }
+
+  try {
+    const isIG = token.startsWith('IGAA') || token.startsWith('IGA');
+    const fields = 'leadgen,messages,comments,messaging_postbacks';
+    const baseUrl = isIG ? 'https://graph.instagram.com/v21.0' : 'https://graph.facebook.com/v21.0';
+    const url = `${baseUrl}/me/subscribed_apps?subscribed_fields=${encodeURIComponent(fields)}&access_token=${encodeURIComponent(token)}`;
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 6000);
+    const metaRes = await fetch(url, { method: 'POST', signal: controller.signal });
+    clearTimeout(timeoutId);
+
+    const data = await metaRes.json();
+    if (metaRes.ok && (data.success || data.subscribed)) {
+      return successResponse(res, {
+        success: true,
+        subscribed_fields: ['leadgen', 'messages', 'comments', 'messaging_postbacks'],
+        meta_response: data,
+      }, 'Successfully subscribed Page to Lead Ads & Messaging Webhooks on Meta!');
+    } else {
+      const errMsg = data.error?.message || 'Meta API rejected subscription request';
+      return successResponse(res, {
+        success: false,
+        error: errMsg,
+        error_code: data.error?.code,
+        error_subcode: data.error?.error_subcode,
+        tip: 'Ensure your Meta App has the "leads_retrieval" and "pages_manage_ads" permissions granted in Meta App Review / Permissions.',
+      }, errMsg);
+    }
+  } catch (err) {
+    throw new ApiError(500, `Failed to communicate with Meta Graph API: ${err.message}`);
+  }
 }
 
 export async function getReviewSettings(req, res) {

@@ -67,6 +67,11 @@ export const api = {
       body: JSON.stringify(payload),
     }),
 
+  subscribeLeadAds: () =>
+    fetchJson<{ success: boolean; subscribed_fields?: string[]; error?: string; tip?: string }>('/settings/instagram/subscribe-lead-ads', {
+      method: 'POST',
+    }),
+
   // Leads & Pipeline with LocalStorage Fallback & Cache
   getLeads: async (status?: string, search?: string) => {
     try {
