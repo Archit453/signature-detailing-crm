@@ -259,3 +259,48 @@ export async function pruneMessagesHandler(req, res) {
   const result = await pruneOldMessages(Number(days) || 30);
   return successResponse(res, result, `Cleaned up messages older than ${days} days`);
 }
+
+export async function diagnoseInstagramIntegration(req, res) {
+  const integrations = (await getSetting('integrations')) || {};
+  const token = integrations.instagram?.page_access_token || config.instagram?.pageAccessToken;
+  const pageId = integrations.instagram?.page_id || config.instagram?.pageId;
+  const testRecipient = req.query.recipient || '2598377343971858';
+
+  const results = {
+    configured_page_id: pageId,
+    token_preview: token ? `${token.slice(0, 10)}...${token.slice(-5)}` : 'none',
+    token_length: token?.length,
+    tests: {},
+  };
+
+  if (!token) {
+    return successResponse(res, results, 'No token configured');
+  }
+
+  // 1. Check graph.facebook.com/me
+  try {
+    const r1 = await fetch(`https://graph.facebook.com/v21.0/me?fields=id,name,username&access_token=${encodeURIComponent(token)}`);
+    results.tests['facebook_me'] = { status: r1.status, data: await r1.json() };
+  } catch (e) { results.tests['facebook_me'] = { error: e.message }; }
+
+  // 2. Check graph.facebook.com/{pageId}
+  try {
+    const r2 = await fetch(`https://graph.facebook.com/v21.0/${pageId}?fields=id,name,username,instagram_business_account&access_token=${encodeURIComponent(token)}`);
+    results.tests['facebook_pageId'] = { status: r2.status, data: await r2.json() };
+  } catch (e) { results.tests['facebook_pageId'] = { error: e.message }; }
+
+  // 3. Check graph.facebook.com/me/accounts
+  try {
+    const r3 = await fetch(`https://graph.facebook.com/v21.0/me/accounts?fields=id,name,instagram_business_account{id,username}&access_token=${encodeURIComponent(token)}`);
+    results.tests['facebook_me_accounts'] = { status: r3.status, data: await r3.json() };
+  } catch (e) { results.tests['facebook_me_accounts'] = { error: e.message }; }
+
+  // 4. Test outbound dispatch
+  try {
+    const { sendInstagramOutboundMessage } = await import('../services/instagram.service.js');
+    const sendResult = await sendInstagramOutboundMessage(testRecipient, 'Diagnostic test from Signature Detailing', { accountId: pageId });
+    results.tests['outbound_dispatch'] = sendResult;
+  } catch (e) { results.tests['outbound_dispatch'] = { error: e.message }; }
+
+  return successResponse(res, results, 'Instagram diagnostic completed');
+}
