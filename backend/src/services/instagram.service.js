@@ -343,17 +343,51 @@ export async function sendInstagramPrivateCommentReply(commentId, messageText, o
 
     const url = `${baseUrl}?access_token=${encodeURIComponent(token)}`;
 
-    // Note: Meta strictly enforces that comment_id private replies must be text (and optional quick replies).
-    // Generic template carousels are rejected by Meta API with error 100 for comment recipients.
     const cleanText = String(messageText || '').slice(0, 1000);
-    const messageObj = { text: cleanText };
+    let messageObj;
 
-    if (Array.isArray(options.quick_replies) && options.quick_replies.length > 0) {
-      messageObj.quick_replies = options.quick_replies.slice(0, 13).map((qr) => ({
-        content_type: 'text',
-        title: String(qr.title || '').slice(0, 20),
-        payload: String(qr.payload || ''),
-      }));
+    // 1. Primary: Interactive Button Card (Template Button / Generic Card with clickable buttons)
+    if (Array.isArray(options.elements) && options.elements.length > 0) {
+      messageObj = {
+        attachment: {
+          type: 'template',
+          payload: {
+            template_type: 'generic',
+            elements: options.elements.slice(0, 1), // Single card for comment private reply compliance
+          },
+        },
+      };
+    } else if (Array.isArray(options.buttons) && options.buttons.length > 0) {
+      messageObj = {
+        attachment: {
+          type: 'template',
+          payload: {
+            template_type: 'generic',
+            elements: [
+              {
+                title: '🚗 Signature Detailing',
+                subtitle: cleanText.slice(0, 80),
+                buttons: options.buttons.slice(0, 3).map((b) => ({
+                  type: b.type || (b.url ? 'web_url' : 'postback'),
+                  title: String(b.title || '').slice(0, 20),
+                  ...(b.url ? { url: b.url } : { payload: String(b.payload || b.id || '') }),
+                })),
+              },
+            ],
+          },
+        },
+      };
+    } else if (Array.isArray(options.quick_replies) && options.quick_replies.length > 0) {
+      messageObj = {
+        text: cleanText,
+        quick_replies: options.quick_replies.slice(0, 13).map((qr) => ({
+          content_type: 'text',
+          title: String(qr.title || '').slice(0, 20),
+          payload: String(qr.payload || ''),
+        })),
+      };
+    } else {
+      messageObj = { text: cleanText };
     }
 
     let response = await fetch(url, {
@@ -368,24 +402,51 @@ export async function sendInstagramPrivateCommentReply(commentId, messageText, o
     let data = await response.json();
 
     if (!response.ok) {
-      console.warn('[Instagram Private DM Warning]', data?.error?.message || data);
+      console.warn('[Instagram Private DM Button Card Warning]', data?.error?.message || data);
 
-      // Retry 1: If quick replies caused rejection, retry with text only
-      if (messageObj.quick_replies) {
-        console.log('[Instagram Private DM Fallback] Retrying with plain text-only...');
+      // Fallback 1: If Button Card template attachment failed, retry with Quick Reply Button chips
+      const fallbackButtons = Array.isArray(options.quick_replies) && options.quick_replies.length > 0
+        ? options.quick_replies
+        : (Array.isArray(options.buttons) && options.buttons.length > 0
+            ? options.buttons.map((b) => ({ content_type: 'text', title: b.title, payload: b.payload || b.id }))
+            : []);
+
+      if (fallbackButtons.length > 0 && messageObj.attachment) {
+        console.log('[Instagram Private DM Fallback] Retrying with Quick Reply button chips...');
+        const qrMessageObj = {
+          text: cleanText,
+          quick_replies: fallbackButtons.slice(0, 13).map((qr) => ({
+            content_type: 'text',
+            title: String(qr.title || '').slice(0, 20),
+            payload: String(qr.payload || ''),
+          })),
+        };
         const retryRes = await fetch(url, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             recipient: { comment_id: cleanCommentId },
-            message: { text: cleanText },
+            message: qrMessageObj,
           }),
         });
         const retryData = await retryRes.json();
         if (retryRes.ok) return { success: true, data: retryData };
       }
 
-      // Retry 2: If endpoint was facebook.com/{page_id}/messages and failed, retry with me/messages
+      // Fallback 2: Retry with plain text
+      console.log('[Instagram Private DM Fallback] Retrying with plain text...');
+      const textRes = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          recipient: { comment_id: cleanCommentId },
+          message: { text: cleanText },
+        }),
+      });
+      const textData = await textRes.json();
+      if (textRes.ok) return { success: true, data: textData };
+
+      // Fallback 3: If endpoint was facebook.com/{page_id}/messages and failed, retry with me/messages
       if (!isIGToken && accountSegment !== 'me') {
         console.log('[Instagram Private DM Fallback] Retrying via me/messages endpoint...');
         const meUrl = `https://graph.facebook.com/v21.0/me/messages?access_token=${encodeURIComponent(token)}`;
@@ -542,12 +603,33 @@ export async function handleIncomingInstagramComment(commentData, entryAccountId
   const studioPhone = getStudioPhone();
   const privateDmText = formatMessage(botConfig?.comment_private_dm || BOT_MESSAGES.comment_private_dm, { username: fromUsername, studioPhone });
 
-  // Exactly-Once Dispatch: 1 Public Comment Reply + 1 Private DM Reply with Carousel Cards & Buttons
+  // Build Interactive Button Card (Up to 3 clickable buttons: top services + packages)
+  const buttons = (activeServices || []).slice(0, 2).map((srv) => ({
+    type: 'postback',
+    title: formatButtonTitle(srv.name),
+    payload: `SERVICE_${srv.short_code}`,
+  }));
+  buttons.push({
+    type: 'postback',
+    title: '🚗 View Packages',
+    payload: 'ACTION_SERVICES',
+  });
+
+  const buttonElements = [
+    {
+      title: '🚗 Signature Detailing',
+      subtitle: String(privateDmText || 'Select a detailing service below:').slice(0, 80),
+      buttons: buttons.slice(0, 3),
+    },
+  ];
+
+  // Exactly-Once Dispatch: 1 Public Comment Reply + 1 Private DM Reply with Interactive Button Card
   const [publicRes, privateRes] = await Promise.all([
     sendInstagramPublicCommentReply(commentId, publicReplyText),
     sendInstagramPrivateCommentReply(commentId, privateDmText, {
       accountId: entryAccountId,
-      // elements omitted: Meta strictly forbids carousels in comment private replies
+      elements: buttonElements,
+      buttons,
       quick_replies: quickReplies,
     }),
   ]);
