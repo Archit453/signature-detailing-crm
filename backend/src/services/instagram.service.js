@@ -285,7 +285,6 @@ export async function sendInstagramPrivateCommentReply(commentId, messageText, o
       simulated: true,
       success: true,
       text: messageText,
-      elements: options.elements || [],
       quick_replies: options.quick_replies || [],
     };
   }
@@ -303,30 +302,20 @@ export async function sendInstagramPrivateCommentReply(commentId, messageText, o
 
     const url = `${baseUrl}?access_token=${encodeURIComponent(token)}`;
 
-    // 1. Try sending Generic Template Carousel Cards if elements are provided
-    let messageObj;
-    if (Array.isArray(options.elements) && options.elements.length > 0) {
-      messageObj = {
-        attachment: {
-          type: 'template',
-          payload: {
-            template_type: 'generic',
-            elements: options.elements,
-          },
-        },
-      };
-    } else {
-      messageObj = { text: String(messageText || '').slice(0, 1000) };
-      if (Array.isArray(options.quick_replies) && options.quick_replies.length > 0) {
-        messageObj.quick_replies = options.quick_replies.slice(0, 13).map((qr) => ({
-          content_type: 'text',
-          title: String(qr.title || '').slice(0, 20),
-          payload: String(qr.payload || ''),
-        }));
-      }
+    // Note: Meta strictly enforces that comment_id private replies must be text (and optional quick replies).
+    // Generic template carousels are rejected by Meta API with error 100 for comment recipients.
+    const cleanText = String(messageText || '').slice(0, 1000);
+    const messageObj = { text: cleanText };
+
+    if (Array.isArray(options.quick_replies) && options.quick_replies.length > 0) {
+      messageObj.quick_replies = options.quick_replies.slice(0, 13).map((qr) => ({
+        content_type: 'text',
+        title: String(qr.title || '').slice(0, 20),
+        payload: String(qr.payload || ''),
+      }));
     }
 
-    const response = await fetch(url, {
+    let response = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -335,51 +324,45 @@ export async function sendInstagramPrivateCommentReply(commentId, messageText, o
       }),
     });
 
-    const data = await response.json();
-    if (!response.ok) {
-      console.warn('[Instagram Private DM Warning]', data);
-      const fallbackText = String(messageText || 'Select a package below:').slice(0, 1000);
-      const fallbackQuickReplies = Array.isArray(options.quick_replies) && options.quick_replies.length > 0
-        ? options.quick_replies.slice(0, 13).map((qr) => ({
-            content_type: 'text',
-            title: String(qr.title || '').slice(0, 20),
-            payload: String(qr.payload || ''),
-          }))
-        : [];
+    let data = await response.json();
 
-      // Fallback A: Compact text with quick reply buttons
-      if (fallbackQuickReplies.length > 0) {
-        console.log('[Instagram Private DM Fallback] Retrying with compact text & quick replies...');
+    if (!response.ok) {
+      console.warn('[Instagram Private DM Warning]', data?.error?.message || data);
+
+      // Retry 1: If quick replies caused rejection, retry with text only
+      if (messageObj.quick_replies) {
+        console.log('[Instagram Private DM Fallback] Retrying with plain text-only...');
         const retryRes = await fetch(url, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             recipient: { comment_id: cleanCommentId },
-            message: {
-              text: fallbackText,
-              quick_replies: fallbackQuickReplies,
-            },
+            message: { text: cleanText },
           }),
         });
         const retryData = await retryRes.json();
         if (retryRes.ok) return { success: true, data: retryData };
       }
 
-      // Fallback B: Plain compact text only
-      console.log('[Instagram Private DM Fallback] Retrying with text-only...');
-      const finalRes = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          recipient: { comment_id: cleanCommentId },
-          message: { text: fallbackText },
-        }),
-      });
-      const finalData = await finalRes.json();
-      if (finalRes.ok) return { success: true, data: finalData };
+      // Retry 2: If endpoint was facebook.com/{page_id}/messages and failed, retry with me/messages
+      if (!isIGToken && accountSegment !== 'me') {
+        console.log('[Instagram Private DM Fallback] Retrying via me/messages endpoint...');
+        const meUrl = `https://graph.facebook.com/v21.0/me/messages?access_token=${encodeURIComponent(token)}`;
+        const meRes = await fetch(meUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            recipient: { comment_id: cleanCommentId },
+            message: { text: cleanText },
+          }),
+        });
+        const meData = await meRes.json();
+        if (meRes.ok) return { success: true, data: meData };
+      }
 
-      return { success: false, error: data.error?.message || 'Meta rejected private reply' };
+      return { success: false, error: data?.error?.message || 'Meta rejected private reply' };
     }
+
     return { success: true, data };
   } catch (err) {
     console.warn('[Instagram Private DM Network Error]', err.message);
@@ -515,7 +498,7 @@ export async function handleIncomingInstagramComment(commentData, entryAccountId
     sendInstagramPublicCommentReply(commentId, publicReplyText),
     sendInstagramPrivateCommentReply(commentId, privateDmText, {
       accountId: entryAccountId,
-      elements: carouselCards,
+      // elements omitted: Meta strictly forbids carousels in comment private replies
       quick_replies: quickReplies,
     }),
   ]);

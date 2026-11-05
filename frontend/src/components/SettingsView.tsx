@@ -634,13 +634,16 @@ export const SettingsView: React.FC = () => {
 
                     <div>
                       <label className="block text-xs font-semibold text-slate-400 mb-1">
-                        Instagram Business Page ID
+                        Instagram Business Account ID (IG User ID)
                       </label>
+                      <p className="text-[10px] text-slate-400 mb-1.5">
+                        Your 17-digit Instagram Business Account ID shown in Meta App Dashboard (e.g. 17841436820921802).
+                      </p>
                       <input
                         type="text"
                         value={tokenInputs.instagram_page_id}
                         onChange={(e) => setTokenInputs({ ...tokenInputs, instagram_page_id: e.target.value })}
-                        placeholder="e.g. 1044542855126226"
+                        placeholder="e.g. 17841436820921802"
                         className={`w-full px-3 py-2 text-xs font-mono rounded-xl border ${
                           isLight ? 'bg-white border-slate-300' : 'bg-slate-950 border-slate-700'
                         } focus:outline-none focus:ring-2 focus:ring-amber-500`}
