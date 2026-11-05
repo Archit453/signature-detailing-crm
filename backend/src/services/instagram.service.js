@@ -292,9 +292,14 @@ export async function sendInstagramPrivateCommentReply(commentId, messageText, o
 
   try {
     const isIGToken = token.startsWith('IGAA') || token.startsWith('IGA');
+    const targetAccountId = options.accountId || integrations?.instagram?.page_id || config.instagram.pageId;
+    const accountSegment = (targetAccountId && targetAccountId !== '1044542855126226' && /^\d+$/.test(targetAccountId))
+      ? targetAccountId
+      : 'me';
+
     const baseUrl = isIGToken
       ? 'https://graph.instagram.com/v21.0/me/messages'
-      : 'https://graph.facebook.com/v21.0/me/messages';
+      : `https://graph.facebook.com/v21.0/${accountSegment}/messages`;
 
     const url = `${baseUrl}?access_token=${encodeURIComponent(token)}`;
 
@@ -509,6 +514,7 @@ export async function handleIncomingInstagramComment(commentData, entryAccountId
   const [publicRes, privateRes] = await Promise.all([
     sendInstagramPublicCommentReply(commentId, publicReplyText),
     sendInstagramPrivateCommentReply(commentId, privateDmText, {
+      accountId: entryAccountId,
       elements: carouselCards,
       quick_replies: quickReplies,
     }),
