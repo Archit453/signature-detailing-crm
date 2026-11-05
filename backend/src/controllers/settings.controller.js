@@ -175,6 +175,24 @@ export async function saveIntegrations(req, res) {
   cachedWaMetaExpiry = 0;
 
   await updateSetting('integrations', merged);
+
+  // Auto-subscribe webhook fields (messages, comments, messaging_postbacks) on Meta
+  if (merged.instagram?.page_access_token) {
+    (async () => {
+      try {
+        const token = merged.instagram.page_access_token;
+        const isIG = token.startsWith('IGAA') || token.startsWith('IGA');
+        const url = isIG
+          ? `https://graph.instagram.com/v21.0/me/subscribed_apps?subscribed_fields=messages,comments,messaging_postbacks&access_token=${encodeURIComponent(token)}`
+          : `https://graph.facebook.com/v21.0/me/subscribed_apps?subscribed_fields=messages,comments,messaging_postbacks&access_token=${encodeURIComponent(token)}`;
+        await fetch(url, { method: 'POST' });
+        console.log('[Auto-Subscribe Webhook] Successfully subscribed messages, comments, and messaging_postbacks on Meta');
+      } catch (subErr) {
+        console.warn('[Auto-Subscribe Webhook Notice]', subErr.message);
+      }
+    })().catch(() => {});
+  }
+
   return successResponse(res, { updated: true }, 'Integration settings saved successfully');
 }
 

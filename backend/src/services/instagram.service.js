@@ -565,31 +565,111 @@ export async function handleIncomingInstagramComment(commentData, entryAccountId
     created_at: new Date().toISOString(),
   };
 
-  // Background DB Logging & Customer Sync (Non-blocking)
-  // Background In-Memory Logging & Customer Sync (Non-blocking)
+  // Multi-tier Persistent Logging & Cross-Instance Sync (Vercel Serverless Safe)
   (async () => {
-    if (!isSupabaseConfigured) {
-      inMemoryComments.unshift(commentRecord);
-      if (inMemoryComments.length > 100) inMemoryComments.pop();
-    } else {
-      try {
-        await supabase.from('instagram_comments').upsert(commentRecord);
-      } catch (err) {
-        console.warn('[Instagram Comment Log Warning]', err.message);
-      }
-    }
+    // 1. Keep In-Memory Buffer
     inMemoryComments.unshift(commentRecord);
     if (inMemoryComments.length > 100) inMemoryComments.pop();
 
-    if (fromId) {
+    if (isSupabaseConfigured) {
+      // 2. Persist to dedicated table if available
       try {
-        await findOrCreateCustomer({
-          name: `@${fromUsername}`,
-          instagramId: fromId,
-          instagramUsername: fromUsername,
-        });
+        await supabase.from('instagram_comments').upsert(commentRecord);
       } catch (err) {
-        console.warn('[Customer Seed Warning]', err.message);
+        // Table might not exist; fallback to studio_settings below
+      }
+
+      // 3. Guaranteed Serverless Persistence via studio_settings.instagram_comments_feed
+      try {
+        const { data: currentFeed } = await supabase
+          .from('studio_settings')
+          .select('value')
+          .eq('key', 'instagram_comments_feed')
+          .maybeSingle();
+
+        const feedList = Array.isArray(currentFeed?.value) ? currentFeed.value : [];
+        const updatedFeed = [commentRecord, ...feedList.filter((c) => c.id !== commentRecord.id)].slice(0, 100);
+
+        await supabase
+          .from('studio_settings')
+          .upsert({
+            key: 'instagram_comments_feed',
+            value: updatedFeed,
+            updated_at: new Date().toISOString(),
+          });
+      } catch (feedErr) {
+        console.warn('[Comments Feed Persistence Notice]', feedErr.message);
+      }
+
+      // 4. Log to conversations table so comment and private DM appear in CRM Inbox DMs feed
+      if (fromId || fromUsername) {
+        try {
+          const cleanId = fromId ? String(fromId).replace(/^ig_/, '') : fromUsername;
+          const nowIso = new Date().toISOString();
+          const initialMessages = [
+            {
+              id: `msg-comment-${commentId}`,
+              direction: 'inbound',
+              content: `💬 Commented on post: "${commentText}"`,
+              created_at: nowIso,
+            },
+          ];
+          if (privateRes.success || privateRes.simulated) {
+            initialMessages.push({
+              id: `msg-reply-${commentId}`,
+              direction: 'outbound',
+              content: privateDmText,
+              created_at: nowIso,
+            });
+          }
+
+          const { data: existingConv } = await supabase
+            .from('conversations')
+            .select('*')
+            .eq('channel', 'instagram')
+            .eq('channel_user_id', cleanId)
+            .maybeSingle();
+
+          if (existingConv) {
+            const currentMsgs = Array.isArray(existingConv.recent_messages) ? existingConv.recent_messages : [];
+            await supabase
+              .from('conversations')
+              .update({
+                recent_messages: [...currentMsgs, ...initialMessages].slice(-25),
+                last_message_preview: `💬 ${commentText}`,
+                last_message_at: nowIso,
+                unread_count: (existingConv.unread_count || 0) + 1,
+              })
+              .eq('id', existingConv.id);
+          } else {
+            await supabase.from('conversations').insert([{
+              channel: 'instagram',
+              channel_user_id: cleanId,
+              customer_name: `@${fromUsername}`,
+              recent_messages: initialMessages,
+              last_message_preview: `💬 ${commentText}`,
+              last_message_at: nowIso,
+              unread_count: 1,
+              bot_active: false,
+              bot_step: 'human_takeover',
+            }]);
+          }
+        } catch (convErr) {
+          console.warn('[Conversation Log Warning]', convErr.message);
+        }
+      }
+
+      // 5. Customer Sync
+      if (fromId) {
+        try {
+          await findOrCreateCustomer({
+            name: `@${fromUsername}`,
+            instagramId: fromId,
+            instagramUsername: fromUsername,
+          });
+        } catch (err) {
+          // Non-blocking
+        }
       }
     }
   })().catch(() => {});
@@ -598,28 +678,38 @@ export async function handleIncomingInstagramComment(commentData, entryAccountId
 }
 
 /**
- * Retrieves recent comments feed
- * Retrieves recent comments feed (Fast In-Memory Buffer)
+ * Retrieves recent comments feed (Persisted across Vercel cold starts)
  */
 export async function getRecentInstagramComments(limit = 50) {
   if (!isSupabaseConfigured) {
     return inMemoryComments.slice(0, limit);
   }
   try {
+    // 1. Check dedicated instagram_comments table first
     const { data, error } = await supabase
       .from('instagram_comments')
       .select('*')
       .order('created_at', { ascending: false })
       .limit(limit);
 
-    if (error) {
-      console.warn('[Instagram Comments Notice]', error.message);
-      return inMemoryComments.slice(0, limit);
+    if (!error && Array.isArray(data) && data.length > 0) {
+      return data;
     }
-    return data || [];
+
+    // 2. Read from studio_settings.instagram_comments_feed (Guaranteed persistence)
+    const { data: feedData } = await supabase
+      .from('studio_settings')
+      .select('value')
+      .eq('key', 'instagram_comments_feed')
+      .maybeSingle();
+
+    if (Array.isArray(feedData?.value) && feedData.value.length > 0) {
+      return feedData.value.slice(0, limit);
+    }
+
+    return inMemoryComments.slice(0, limit);
   } catch (err) {
     console.warn('[Instagram Comments Notice]', err.message);
     return inMemoryComments.slice(0, limit);
   }
-  return inMemoryComments.slice(0, limit);
 }
