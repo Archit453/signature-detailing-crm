@@ -530,22 +530,22 @@ export const InboxView: React.FC<InboxViewProps> = ({ initialCustomerId }) => {
             </div>
           </div>
 
+          {selectedConversation.bot_step === 'human_takeover' && selectedConversation.bot_active && (
+            <div className={`px-4 py-2 border-b text-xs flex items-center justify-between ${
+              isLight ? 'bg-blue-50 border-blue-200 text-blue-900' : 'bg-[#1C1D21] border-blue-500/20 text-blue-300'
+            }`}>
+              <span>
+                👤 <strong>Human Attention Active:</strong> Staff alerted. Bot remains active to assist the customer automatically.
+              </span>
+            </div>
+          )}
+
           {!selectedConversation.bot_active && (
             <div className={`px-4 py-2 border-b text-xs flex items-center justify-between ${
               isLight ? 'bg-amber-50 border-amber-200 text-amber-900' : 'bg-[#1C1D21] border-amber-500/20 text-amber-300'
             }`}>
               <span>
-                {selectedConversation.bot_paused_reason === 'user_requested_human'
-                  ? '👤 Customer requested to speak with a human agent.'
-                  : selectedConversation.bot_paused_reason === 'instagram_echo'
-                  ? '📱 Staff replied via Instagram Mobile App. Bot is paused.'
-                  : selectedConversation.bot_paused_reason === 'coexistence_echo'
-                  ? '📱 Staff replied via WhatsApp Mobile App. Bot is paused.'
-                  : selectedConversation.bot_paused_reason === 'unhandled_fallback'
-                  ? '⚠️ Customer asked complex questions. Bot transferred to human.'
-                  : selectedConversation.bot_paused_reason === 'manual_takeover'
-                  ? '👨‍💻 Staff intervened from CRM Inbox. Bot is paused.'
-                  : '⏸️ Bot is currently paused for human takeover.'}
+                ⏸️ Bot is manually paused. Customer messages will not trigger automated replies.
               </span>
               <button
                 onClick={handleToggleBot}

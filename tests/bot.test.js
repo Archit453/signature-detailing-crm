@@ -1,4 +1,5 @@
 import { processBotMessage } from '../backend/src/services/bot.service.js';
+import { handleIncomingInstagramComment } from '../backend/src/services/instagram.service.js';
 import { validateAndFormatPhone } from '../backend/src/utils/phoneValidator.js';
 
 async function runTests() {
@@ -85,36 +86,38 @@ async function runTests() {
   console.log('\n--- 4. Testing Human Takeover Edge Cases & Closing Details ---');
   const takeoverUser = `ig_takeover_test_${Date.now()}`;
 
-  // Test 4A: Explicit Request to Speak with a Human
+  // Test 4A: Explicit Request to Speak with a Human (Bot alerts staff but DOES NOT pause)
   const humanReqRes = await processBotMessage({
     channel: 'instagram',
     channelUserId: takeoverUser,
     rawText: 'Can I speak with a real person please?',
   });
   console.assert(humanReqRes.step === 'human_takeover', 'Should transition to human_takeover step');
-  console.assert(humanReqRes.botPaused === true, 'Bot should be paused for human intervention');
-  console.log('✓ Test 4A: Explicit human request pauses bot and sets human_takeover');
+  console.assert(!humanReqRes.botPaused, 'Bot should NOT be paused when human takeover occurs');
+  console.log('✓ Test 4A: Explicit human request dispatches contact details & alerts owner without pausing bot');
 
-  // Test 4B: Inbound message while paused stays paused without bot intervention
-  const silencedRes = await processBotMessage({
+  // Test 4B: Inbound message following human handover is still actively processed (bot is NOT silenced)
+  const followUpRes = await processBotMessage({
     channel: 'instagram',
     channelUserId: takeoverUser,
-    rawText: 'Are you guys available today?',
+    buttonPayload: 'SERVICE_ceramic',
+    rawText: 'Ceramic Coating',
   });
-  console.assert(silencedRes.botPaused === true, 'Bot should stay silenced during human takeover');
-  console.log('✓ Test 4B: Customer messages while paused do not trigger bot auto-replies');
+  console.assert(followUpRes.step === 'awaiting_name', 'Bot continues conversation seamlessly without pausing');
+  console.assert(!followUpRes.botPaused, 'Bot remains active after human takeover');
+  console.log('✓ Test 4B: Customer messages after human takeover continue to receive automated assistance');
 
-  // Test 4C: Customer sends reset/menu keyword -> Reactivates bot
+  // Test 4C: Customer sends reset/menu keyword -> Resets and shows services
   const reactivateRes = await processBotMessage({
     channel: 'instagram',
     channelUserId: takeoverUser,
     rawText: 'menu',
   });
-  console.assert(reactivateRes.step === 'awaiting_service', 'Sending menu should reset and reactivate bot');
-  console.assert(!reactivateRes.botPaused, 'Bot should no longer be paused');
-  console.log('✓ Test 4C: Sending "menu" reactivates bot from paused state');
+  console.assert(reactivateRes.step === 'awaiting_service', 'Sending menu should reset to awaiting_service');
+  console.assert(!reactivateRes.botPaused, 'Bot should remain active');
+  console.log('✓ Test 4C: Sending "menu" shows service selection menu with active bot');
 
-  // Test 4D: 2-Strike Unrecognized Query Auto-Transfer to Human
+  // Test 4D: 2-Strike Unrecognized Query Auto-Transfer to Human (Without Pausing Bot)
   const fallbackUser = `ig_fallback_test_${Date.now()}`;
   // 1st unrecognized message
   const strike1 = await processBotMessage({
@@ -125,15 +128,36 @@ async function runTests() {
   console.assert(strike1.handled === true && strike1.step !== 'human_takeover', 'Strike 1 should show guided fallback');
   console.log('✓ Test 4D-1: 1st unhandled query offers quick actions guidance');
 
-  // 2nd unrecognized message -> Auto-escalate to human handover
+  // 2nd unrecognized message -> Auto-escalate to human handover without freezing bot
   const strike2 = await processBotMessage({
     channel: 'instagram',
     channelUserId: fallbackUser,
     rawText: 'Tell me more about string theory',
   });
   console.assert(strike2.step === 'human_takeover', 'Strike 2 should auto-transfer to human_takeover');
-  console.assert(strike2.botPaused === true, 'Bot should pause after 2 unrecognized inquiries');
-  console.log('✓ Test 4D-2: 2nd consecutive unhandled query auto-escalates to human handover');
+  console.assert(!strike2.botPaused, 'Bot should NOT pause after 2 unrecognized inquiries');
+  console.log('✓ Test 4D-2: 2nd consecutive unhandled query auto-escalates to human handover without pausing bot');
+
+  console.log('\n--- 5. Testing Instagram Comment Automation ("Hi @username! Check your DM 📩") ---');
+  const commentTestId = `test_comment_${Date.now()}`;
+  const commentTestRes = await handleIncomingInstagramComment({
+    id: commentTestId,
+    text: 'All set',
+    from: {
+      id: '178414999999999',
+      username: 'arc___hit',
+    },
+    media: {
+      id: '180999999999999',
+    },
+  });
+  console.assert(commentTestRes.public_replied === true, 'Should publish public reply to comment');
+  console.assert(
+    commentTestRes.public_reply_text === 'Hi @arc___hit! Check your DM 📩',
+    `Expected "Hi @arc___hit! Check your DM 📩", got "${commentTestRes.public_reply_text}"`
+  );
+  console.assert(commentTestRes.private_dm_sent === true, 'Should send private DM to commenter');
+  console.log('✓ Test 5: Comment "All set" by @arc___hit received exact reply: "Hi @arc___hit! Check your DM 📩"');
 
   console.log('\n========================================');
   console.log('ALL BOT & VALIDATION TESTS PASSED! 🎉');

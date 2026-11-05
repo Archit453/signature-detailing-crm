@@ -306,10 +306,8 @@ export async function sendAgentReply(req, res) {
       await sendInstagramOutboundMessage(conversation.channel_user_id, cleanContent);
     }
 
-    // Automatically silence the bot (Human Takeover) when agent replies
+    // Note agent reply without pausing the bot (bot remains active for customer)
     await updateConversationState(conversationId, {
-      bot_active: false,
-      bot_paused_reason: 'manual_takeover',
       bot_step: 'human_takeover',
     });
   }

@@ -570,7 +570,8 @@ export async function handleIncomingInstagramComment(commentData, entryAccountId
   // Guard 4: Bot Signature Text Check (Detects if comment text was posted by our own bot)
   const isBotSignature =
     commentText.startsWith('Hi @') &&
-    (commentText.includes('Thanks for reaching out') ||
+    (commentText.includes('Check your DM') ||
+      commentText.includes('Thanks for reaching out') ||
       commentText.includes('sent you a DM') ||
       commentText.includes('Please check your message') ||
       commentText.includes('Signature Detailing'));
@@ -613,11 +614,11 @@ export async function handleIncomingInstagramComment(commentData, entryAccountId
     return { ignored: true, reason: 'own_account_comment' };
   }
 
-  // Guard 6: Per-User Anti-Spam / Rapid Cooldown (1 reply per user per 2 minutes on the same post)
+  // Guard 6: Per-User Anti-Spam / Rapid Cooldown (1 reply per user per 10 seconds on the same post)
   const userMediaKey = `${fromUsername.toLowerCase()}_${mediaId}`;
   const now = Date.now();
   const lastRepliedTime = userCommentCooldown.get(userMediaKey);
-  if (lastRepliedTime && now - lastRepliedTime < 120000 && !commentId.startsWith('test_')) {
+  if (lastRepliedTime && now - lastRepliedTime < 10000 && !commentId.startsWith('test_')) {
     console.log(`[Instagram Comment Guard] User @${fromUsername} cooldown active on post ${mediaId}. Skipping multiple reply.`);
     return { ignored: true, reason: 'user_comment_cooldown' };
   }
@@ -635,7 +636,8 @@ export async function handleIncomingInstagramComment(commentData, entryAccountId
 
   const rawTemplate =
     botConfig?.comment_public_reply ||
-    'Hi @{{username}}! Sent you a DM with package details 🚗✨';
+    BOT_MESSAGES.comment_public_reply ||
+    'Hi @{{username}}! Check your DM 📩';
 
   const publicReplyText = rawTemplate.includes('{{username}}')
     ? rawTemplate.replace(/\{\{username\}\}/g, fromUsername)
@@ -783,8 +785,8 @@ export async function handleIncomingInstagramComment(commentData, entryAccountId
               last_message_preview: `💬 ${commentText}`,
               last_message_at: nowIso,
               unread_count: 1,
-              bot_active: false,
-              bot_step: 'human_takeover',
+              bot_active: true,
+              bot_step: 'awaiting_service',
             }]);
           }
         } catch (convErr) {

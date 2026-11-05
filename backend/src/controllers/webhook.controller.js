@@ -80,10 +80,8 @@ export async function handleWhatsAppWebhook(req, res) {
           metaMessageId: echoMsg.id || `echo-${Date.now()}`,
         });
 
-        // 3. Automatically pause the bot (Human Takeover)
+        // 3. Keep bot active even when agent messages from phone
         await updateConversationState(conversation.id, {
-          bot_active: false,
-          bot_paused_reason: 'coexistence_echo',
           bot_step: 'human_takeover',
         });
       }
@@ -220,9 +218,8 @@ export async function handleInstagramWebhook(req, res) {
                 content: outboundText,
                 metaMessageId: event.message?.mid || `echo-ig-${Date.now()}`,
               });
+              // 3. Keep bot active even when agent messages from Instagram app
               await updateConversationState(conversation.id, {
-                bot_active: false,
-                bot_paused_reason: 'instagram_echo',
                 bot_step: 'human_takeover',
               });
             }

@@ -230,8 +230,8 @@ export async function processIncomingAdLead(rawLeadData, options = {}) {
               last_message_preview: `📋 Instagram Ad Lead: ${matchedService}`,
               last_message_at: nowIso,
               unread_count: 1,
-              bot_active: false,
-              bot_step: 'human_takeover',
+              bot_active: true,
+              bot_step: 'awaiting_service',
             }]);
           }
         } catch (convErr) {

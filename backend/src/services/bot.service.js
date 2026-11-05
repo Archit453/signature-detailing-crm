@@ -345,8 +345,8 @@ export async function processBotMessage({
     ? await findOrCreateWhatsAppConversation(customer.id, channelUserId)
     : await findOrCreateInstagramConversation(customer.id, channelUserId, profileName);
 
-  // Human Takeover / Bot Paused Check
-  if (!conversation.bot_active || conversation.bot_step === 'human_takeover') {
+  // Manual Bot Pause Check (only silences if manually toggled off in CRM)
+  if (conversation.bot_active === false && conversation.bot_paused_reason === 'manual_toggle') {
     const isResetIntent = ['hi', 'hello', 'hey', 'start', 'menu', 'reset', 'restart', 'bot'].includes(lowerInput);
     if (isResetIntent) {
       console.log(`[Bot Resumed] Customer ${channelUserId} sent reset keyword. Reactivating bot.`);
@@ -363,7 +363,7 @@ export async function processBotMessage({
         }).eq('id', conversation.id).then(() => {}, () => {});
       }
     } else {
-      console.log(`[Bot Silenced] Conversation ${conversation.id} is in human takeover mode. Skipping automated bot reply.`);
+      console.log(`[Bot Silenced] Conversation ${conversation.id} is manually paused. Skipping automated bot reply.`);
       await logWhatsAppMessage({
         conversationId: conversation.id,
         direction: 'inbound',
@@ -413,9 +413,9 @@ export async function processBotMessage({
       : sendInstagramOutboundMessage(channelUserId, handoverMsg, { buttons: closingButtons });
 
     Object.assign(conversation, {
-      bot_active: false,
+      bot_active: true,
       bot_step: 'human_takeover',
-      bot_paused_reason: 'user_requested_human',
+      bot_paused_reason: null,
       fallback_count: 0,
     });
 
@@ -424,9 +424,9 @@ export async function processBotMessage({
       inbound: { content: displayInput, metaMessageId },
       outbound: { content: handoverMsg },
       conversationUpdates: {
-        bot_active: false,
+        bot_active: true,
         bot_step: 'human_takeover',
-        bot_paused_reason: 'user_requested_human',
+        bot_paused_reason: null,
       },
     });
 
@@ -438,7 +438,7 @@ export async function processBotMessage({
     }
 
     await Promise.all([sendPromise, dbPromise]);
-    return { handled: true, step: 'human_takeover', botPaused: true };
+    return { handled: true, step: 'human_takeover', botPaused: false };
   }
 
   // Quick Action: Studio Website
@@ -998,9 +998,9 @@ export async function processBotMessage({
       : sendInstagramOutboundMessage(channelUserId, handoverMsg, { buttons: closingButtons });
 
     Object.assign(conversation, {
-      bot_active: false,
+      bot_active: true,
       bot_step: 'human_takeover',
-      bot_paused_reason: 'unhandled_fallback',
+      bot_paused_reason: null,
     });
 
     const dbPromise = logBotTurnMessages({
@@ -1008,9 +1008,9 @@ export async function processBotMessage({
       inbound: { content: displayInput, metaMessageId },
       outbound: { content: handoverMsg },
       conversationUpdates: {
-        bot_active: false,
+        bot_active: true,
         bot_step: 'human_takeover',
-        bot_paused_reason: 'unhandled_fallback',
+        bot_paused_reason: null,
       },
     });
 
@@ -1022,7 +1022,7 @@ export async function processBotMessage({
     }
 
     await Promise.all([sendPromise, dbPromise]);
-    return { handled: true, step: 'human_takeover', botPaused: true };
+    return { handled: true, step: 'human_takeover', botPaused: false };
   }
 
   // 1st unrecognized query: gentle guidance with options

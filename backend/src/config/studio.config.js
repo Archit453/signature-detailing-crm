@@ -45,8 +45,8 @@ export const STUDIO_CONFIG = {
     completion_text: 'Thank you! Our detailing specialist will call you shortly to discuss your {{service}} requirements and schedule your appointment. 🚗✨',
     
     // Comment Automation
-    comment_public_reply: 'Hi @{{username}}! Thanks for reaching out. We just sent you a DM with our detailing packages. Please check your message requests! 🚗✨',
-    comment_private_dm: 'Hi @{{username}}! Thanks for your interest in our work 🚗✨ Which service can we help you with?',
+    comment_public_reply: 'Hi @{{username}}! Check your DM 📩',
+    comment_private_dm: 'Greetings from Signature Bot 🚗✨\nWhich service are you interested in today?',
   },
 
   // ==========================================
