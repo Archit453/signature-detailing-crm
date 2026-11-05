@@ -44,11 +44,11 @@ export const BOT_MESSAGES = {
   // 3. STUDIO LOCATION (Auto-dispatched immediately after booking card)
   // --------------------------------------------------------------------------
   studio_location:
-    '📍 *{{studioName}} Studio*\n' +
-    '🏢 {{address}}\n' +'\n'+
-    '📞 {{studioPhone}}\n' +'\n'+
-    '🌐 {{websiteUrl}}\n' +'\n'+
-    '️ *Maps:* {{mapsUrl}}',
+    '📍 *{{studioName}} Studio Details*\n' +
+    '🏢 {{address}}\n\n' +
+    '📞 *Helpline / Call:* {{studioPhone}}\n\n' +
+    '🌐 *Official Website:* {{websiteUrl}}\n\n' +
+    '🗺️ *Google Maps Navigation:* {{mapsUrl}}',
 
   btn_studio_location: '📍 Studio Location',
 
@@ -94,6 +94,17 @@ export const BOT_MESSAGES = {
     'Explore our detailing packages, paint protection films (PPF), ceramic coatings, and studio gallery:\n' +
     '👉 {{websiteUrl}}\n\n' +
     'Feel free to choose an option below:',
+
+  // --------------------------------------------------------------------------
+  // 8B. HUMAN AGENT TAKEOVER & CLOSING CARD
+  // --------------------------------------------------------------------------
+  human_handover:
+    'I have alerted our detailing specialist to assist you personally 👤\n\n' +
+    'Our team will message you here shortly. If you need immediate assistance or want to visit us directly:\n\n' +
+    '📞 *Helpline / Call:* {{studioPhone}}\n' +
+    '🌐 *Website:* {{websiteUrl}}\n' +
+    '📍 *Studio Address:*\n{{address}}\n' +
+    '🗺️ *Google Maps:* {{mapsUrl}}',
 
   // --------------------------------------------------------------------------
   // 9. INSTAGRAM COMMENT AUTOMATION (Public Reel Reply & Private DM)

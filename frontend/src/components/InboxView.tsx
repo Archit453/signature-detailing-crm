@@ -367,8 +367,8 @@ export const InboxView: React.FC<InboxViewProps> = ({ initialCustomerId }) => {
                         </span>
                       )}
                       {!conv.bot_active && (
-                        <span className="text-[9px] px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-500 border border-amber-500/25 font-semibold">
-                          Bot Paused
+                        <span className="text-[9px] px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-500 border border-amber-500/25 font-semibold whitespace-nowrap">
+                          {conv.bot_paused_reason === 'user_requested_human' ? '👤 Human Needed' : 'Bot Paused'}
                         </span>
                       )}
                     </div>
@@ -530,14 +530,26 @@ export const InboxView: React.FC<InboxViewProps> = ({ initialCustomerId }) => {
             </div>
           </div>
 
-          {!selectedConversation.bot_active && selectedConversation.bot_paused_reason === 'coexistence_echo' && (
+          {!selectedConversation.bot_active && (
             <div className={`px-4 py-2 border-b text-xs flex items-center justify-between ${
-              isLight ? 'bg-blue-50 border-blue-200 text-blue-900' : 'bg-[#1C1D21] border-[#5E81F4]/20 text-[#CDD8FC]'
+              isLight ? 'bg-amber-50 border-amber-200 text-amber-900' : 'bg-[#1C1D21] border-amber-500/20 text-amber-300'
             }`}>
-              <span>📱 Staff replied via WhatsApp Mobile App. Bot is paused.</span>
+              <span>
+                {selectedConversation.bot_paused_reason === 'user_requested_human'
+                  ? '👤 Customer requested to speak with a human agent.'
+                  : selectedConversation.bot_paused_reason === 'instagram_echo'
+                  ? '📱 Staff replied via Instagram Mobile App. Bot is paused.'
+                  : selectedConversation.bot_paused_reason === 'coexistence_echo'
+                  ? '📱 Staff replied via WhatsApp Mobile App. Bot is paused.'
+                  : selectedConversation.bot_paused_reason === 'unhandled_fallback'
+                  ? '⚠️ Customer asked complex questions. Bot transferred to human.'
+                  : selectedConversation.bot_paused_reason === 'manual_takeover'
+                  ? '👨‍💻 Staff intervened from CRM Inbox. Bot is paused.'
+                  : '⏸️ Bot is currently paused for human takeover.'}
+              </span>
               <button
                 onClick={handleToggleBot}
-                className="text-xs font-semibold text-[#5E81F4] underline ml-2 hover:text-[#4d6fd9]"
+                className="text-xs font-semibold text-[#5E81F4] underline ml-2 hover:text-[#4d6fd9] whitespace-nowrap"
               >
                 Resume Bot
               </button>

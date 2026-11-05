@@ -22,6 +22,7 @@ import {
 let inMemoryIgConversations = [];
 const igConversationCache = new Map();
 const IG_CONV_CACHE_TTL = 3600000; // 1 hour TTL
+const fallbackTracker = new Map(); // tracks consecutive unhandled queries per channelUserId
 
 export async function updateConversationState(conversationId, updates) {
   for (const entry of igConversationCache.values()) {
@@ -346,16 +347,98 @@ export async function processBotMessage({
 
   // Human Takeover / Bot Paused Check
   if (!conversation.bot_active || conversation.bot_step === 'human_takeover') {
-    console.log(`[Bot Silenced] Conversation ${conversation.id} is in human takeover mode. Skipping automated bot reply.`);
-    await logWhatsAppMessage({
-      conversationId: conversation.id,
-      direction: 'inbound',
-      senderType: 'customer',
-      messageType: buttonPayload ? 'button_reply' : 'text',
-      content: displayInput,
-      metaMessageId,
+    const isResetIntent = ['hi', 'hello', 'hey', 'start', 'menu', 'reset', 'restart', 'bot'].includes(lowerInput);
+    if (isResetIntent) {
+      console.log(`[Bot Resumed] Customer ${channelUserId} sent reset keyword. Reactivating bot.`);
+      fallbackTracker.delete(channelUserId);
+      conversation.bot_active = true;
+      conversation.bot_step = 'awaiting_service';
+      conversation.bot_paused_reason = null;
+      conversation.fallback_count = 0;
+      if (isSupabaseConfigured && conversation.id) {
+        supabase.from('conversations').update({
+          bot_active: true,
+          bot_step: 'awaiting_service',
+          bot_paused_reason: null,
+        }).eq('id', conversation.id).then(() => {}, () => {});
+      }
+    } else {
+      console.log(`[Bot Silenced] Conversation ${conversation.id} is in human takeover mode. Skipping automated bot reply.`);
+      await logWhatsAppMessage({
+        conversationId: conversation.id,
+        direction: 'inbound',
+        senderType: 'customer',
+        messageType: buttonPayload ? 'button_reply' : 'text',
+        content: displayInput,
+        metaMessageId,
+      });
+      return { handled: true, botPaused: true };
+    }
+  }
+
+  // Edge Case 1: Explicit Request to Speak with a Human / Staff Member
+  const HUMAN_KEYWORDS = [
+    'human', 'agent', 'executive', 'person', 'real person', 'talk to person',
+    'talk to human', 'speak to someone', 'call me', 'talk to someone',
+    'talk to owner', 'manager', 'speak with someone', 'representative',
+    'help me', 'customer care', 'support', 'staff', 'owner'
+  ];
+  const wantsHuman = cleanInput === 'ACTION_TALK_HUMAN' ||
+    HUMAN_KEYWORDS.some((kw) => lowerInput === kw || (kw.length >= 5 && lowerInput.includes(kw)));
+
+  if (wantsHuman) {
+    const studioConfig = (await getSetting('general')) || {};
+    const studioName = studioConfig.studio_name || getStudioName();
+    const address = studioConfig.address || getStudioAddress();
+    const phone = studioConfig.phone || getStudioPhone();
+    const websiteUrl = studioConfig.website_url || getStudioWebsite();
+    const mapsUrl = studioConfig.google_maps_link || 'https://maps.app.goo.gl/TP4S4MommkGLpAzP7';
+
+    const handoverMsg = formatMessage('human_handover', {
+      studioName,
+      address,
+      phone,
+      studioPhone: phone,
+      websiteUrl,
+      mapsUrl,
     });
-    return { handled: true, botPaused: true };
+
+    const closingButtons = [
+      { type: 'web_url', title: '🌐 Visit Website', url: websiteUrl },
+      { type: 'web_url', title: '📍 Google Maps', url: mapsUrl },
+    ];
+
+    const sendPromise = channel === 'whatsapp'
+      ? sendMetaWhatsAppMessage(channelUserId, handoverMsg)
+      : sendInstagramOutboundMessage(channelUserId, handoverMsg, { buttons: closingButtons });
+
+    Object.assign(conversation, {
+      bot_active: false,
+      bot_step: 'human_takeover',
+      bot_paused_reason: 'user_requested_human',
+      fallback_count: 0,
+    });
+
+    const dbPromise = logBotTurnMessages({
+      conversationId: conversation.id,
+      inbound: { content: displayInput, metaMessageId },
+      outbound: { content: handoverMsg },
+      conversationUpdates: {
+        bot_active: false,
+        bot_step: 'human_takeover',
+        bot_paused_reason: 'user_requested_human',
+      },
+    });
+
+    // Notify studio owner / staff on WhatsApp about the human takeover request
+    const ownerPhone = studioConfig.phone || config.studio?.ownerPhone || '917008457284';
+    if (ownerPhone && ownerPhone !== channelUserId) {
+      const ownerAlertText = `🔔 *Staff Attention Needed!*\n\nCustomer *${customer?.name || channelUserId}* on ${channel.toUpperCase()} requested a human agent.\n\n💬 Message: "${cleanInput}"\n👉 Open CRM Inbox to reply.`;
+      sendMetaWhatsAppMessage(ownerPhone, ownerAlertText).catch(() => {});
+    }
+
+    await Promise.all([sendPromise, dbPromise]);
+    return { handled: true, step: 'human_takeover', botPaused: true };
   }
 
   // Quick Action: Studio Website
@@ -600,13 +683,12 @@ export async function processBotMessage({
   }
 
   const isGreetingOrReset =
-    ['hi', 'hello', 'hey', 'start', 'menu', 'reset', 'restart'].includes(lowerInput) ||
-    conversation.bot_step === 'awaiting_service';
+    ['hi', 'hello', 'hey', 'start', 'menu', 'reset', 'restart'].includes(lowerInput);
 
   // =========================================================================
   // STEP 1: SERVICE MENU SELECTION
   // =========================================================================
-  if (!selectedService && (isGreetingOrReset || !conversation.bot_step || conversation.bot_step === 'awaiting_service')) {
+  if (!selectedService && (isGreetingOrReset || !conversation.bot_step)) {
     const welcomeText = botConfig.welcome_text || BOT_MESSAGES.welcome;
 
     const sendPromise = channel === 'whatsapp'
@@ -882,12 +964,73 @@ export async function processBotMessage({
   }
 
   // =========================================================================
-  // STEP 4: QUICK ACTIONS / FALLBACK
+  // STEP 4: QUICK ACTIONS / FALLBACK (With 2-Strike Human Handover)
   // =========================================================================
-  const studioPhone = getStudioPhone();
+  const currentFallback = (fallbackTracker.get(channelUserId) || 0) + 1;
+  fallbackTracker.set(channelUserId, currentFallback);
+
+  const studioConfig = (await getSetting('general')) || {};
+  const studioName = studioConfig.studio_name || getStudioName();
+  const address = studioConfig.address || getStudioAddress();
+  const studioPhone = studioConfig.phone || getStudioPhone();
+  const websiteUrl = studioConfig.website_url || getStudioWebsite();
+  const mapsUrl = studioConfig.google_maps_link || 'https://maps.app.goo.gl/TP4S4MommkGLpAzP7';
+
+  // If customer asked unrecognized questions 2+ times in a row, auto-handover to human!
+  if (currentFallback >= 2) {
+    fallbackTracker.delete(channelUserId);
+    const handoverMsg = formatMessage('human_handover', {
+      studioName,
+      address,
+      phone: studioPhone,
+      studioPhone,
+      websiteUrl,
+      mapsUrl,
+    });
+
+    const closingButtons = [
+      { type: 'web_url', title: '🌐 Visit Website', url: websiteUrl },
+      { type: 'web_url', title: '📍 Google Maps', url: mapsUrl },
+    ];
+
+    const sendPromise = channel === 'whatsapp'
+      ? sendMetaWhatsAppMessage(channelUserId, handoverMsg)
+      : sendInstagramOutboundMessage(channelUserId, handoverMsg, { buttons: closingButtons });
+
+    Object.assign(conversation, {
+      bot_active: false,
+      bot_step: 'human_takeover',
+      bot_paused_reason: 'unhandled_fallback',
+    });
+
+    const dbPromise = logBotTurnMessages({
+      conversationId: conversation.id,
+      inbound: { content: displayInput, metaMessageId },
+      outbound: { content: handoverMsg },
+      conversationUpdates: {
+        bot_active: false,
+        bot_step: 'human_takeover',
+        bot_paused_reason: 'unhandled_fallback',
+      },
+    });
+
+    // Alert studio owner
+    const ownerPhone = studioPhone || config.studio?.ownerPhone || '917008457284';
+    if (ownerPhone && ownerPhone !== channelUserId) {
+      const ownerAlertText = `🔔 *Staff Attention Needed!*\n\nCustomer *${customer?.name || channelUserId}* on ${channel.toUpperCase()} asked complex questions requiring human assistance.\n\n💬 Last inquiry: "${cleanInput}"\n👉 Open CRM Inbox to reply.`;
+      sendMetaWhatsAppMessage(ownerPhone, ownerAlertText).catch(() => {});
+    }
+
+    await Promise.all([sendPromise, dbPromise]);
+    return { handled: true, step: 'human_takeover', botPaused: true };
+  }
+
+  // 1st unrecognized query: gentle guidance with options
   const fallbackText = formatMessage('fallback', { studioPhone });
   const quickActions = [
+    { id: 'ACTION_SERVICES', title: '🚗 View Packages' },
     { id: 'ACTION_LOCATION', title: '📍 Studio Location' },
+    { id: 'ACTION_TALK_HUMAN', title: '👤 Talk to Human' },
   ];
 
   const sendPromise = channel === 'whatsapp'
@@ -947,6 +1090,11 @@ async function completeLeadCapture({
     mapsUrl,
   });
 
+  const closingButtons = [
+    { type: 'web_url', title: '🌐 Visit Website', url: websiteUrl },
+    { type: 'web_url', title: '📍 Google Maps', url: mapsUrl },
+  ];
+
   // 1. Send outbound message immediately to user (instant delivery!)
   const sendPromise = (async () => {
     if (channel === 'whatsapp') {
@@ -954,7 +1102,7 @@ async function completeLeadCapture({
       await sendMetaWhatsAppMessage(channelUserId, locationMsg);
     } else {
       await sendInstagramOutboundMessage(channelUserId, completionMessage, { buttons: postLeadButtons });
-      await sendInstagramOutboundMessage(channelUserId, locationMsg);
+      await sendInstagramOutboundMessage(channelUserId, locationMsg, { buttons: closingButtons });
     }
   })();
 
