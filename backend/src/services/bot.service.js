@@ -62,7 +62,7 @@ export async function findOrCreateInstagramConversation(customerId, igsid, custo
     if (customerName && (!cached.conversation.customer_name || cached.conversation.customer_name === 'Instagram User' || cached.conversation.customer_name === 'Instagram Customer')) {
       cached.conversation.customer_name = customerName;
       if (isSupabaseConfigured && cached.conversation.id) {
-        supabase.from('conversations').update({ customer_name: customerName }).eq('id', cached.conversation.id).catch(() => {});
+        supabase.from('conversations').update({ customer_name: customerName }).eq('id', cached.conversation.id).then(() => {}, () => {});
       }
     }
     return cached.conversation;
@@ -110,7 +110,6 @@ export async function findOrCreateInstagramConversation(customerId, igsid, custo
   }
 
   const insertData = {
-    customer_id: customerId,
     customer_name: customerName || 'Instagram User',
     channel: 'instagram',
     channel_user_id: cleanId,
@@ -560,11 +559,9 @@ export async function processBotMessage({
       ? buildWhatsAppServicesList(activeServices).then((listPayload) => sendMetaWhatsAppMessage(channelUserId, welcomeText, { list: listPayload }))
       : buildInstagramServicesCarousel(activeServices).then((carouselElements) => sendInstagramOutboundMessage(channelUserId, welcomeText, { elements: carouselElements }));
 
-    // On Instagram: Send first automated greeting/menu, then pause bot for human staff takeover
-    const isInstagram = channel === 'instagram';
-    const nextStep = isInstagram ? 'human_takeover' : 'awaiting_service';
-    const nextBotActive = !isInstagram;
-    const nextPauseReason = isInstagram ? 'first_message_takeover' : null;
+    const nextStep = 'awaiting_service';
+    const nextBotActive = true;
+    const nextPauseReason = null;
 
     Object.assign(conversation, {
       bot_step: nextStep,
@@ -583,7 +580,7 @@ export async function processBotMessage({
     });
 
     await Promise.all([sendPromise, dbPromise]);
-    return { handled: true, step: nextStep, botPaused: isInstagram };
+    return { handled: true, step: nextStep, botPaused: false };
   }
 
   // Check if customer selected a service (via button payload, short code, or name match)
@@ -616,11 +613,9 @@ export async function processBotMessage({
       ? buildWhatsAppServicesList(activeServices).then((listPayload) => sendMetaWhatsAppMessage(channelUserId, welcomeText, { list: listPayload }))
       : buildInstagramServicesCarousel(activeServices).then((carouselElements) => sendInstagramOutboundMessage(channelUserId, welcomeText, { elements: carouselElements }));
 
-    // On Instagram: Send first automated greeting/menu, then pause bot for human staff takeover
-    const isInstagram = channel === 'instagram';
-    const nextStep = isInstagram ? 'human_takeover' : 'awaiting_service';
-    const nextBotActive = !isInstagram;
-    const nextPauseReason = isInstagram ? 'first_message_takeover' : null;
+    const nextStep = 'awaiting_service';
+    const nextBotActive = true;
+    const nextPauseReason = null;
 
     Object.assign(conversation, {
       bot_step: nextStep,
@@ -639,21 +634,50 @@ export async function processBotMessage({
     });
 
     await Promise.all([sendPromise, dbPromise]);
-    return { handled: true, step: nextStep, botPaused: isInstagram };
+    return { handled: true, step: nextStep, botPaused: false };
   }
 
   // =========================================================================
-  // STEP 2: SERVICE SELECTED -> PROMPT PHONE CONFIRMATION (Ultra-Fast 2-Tap)
+  // STEP 2: SERVICE SELECTED -> PROMPT FOR NAME / VEHICLE & PHONE
   // =========================================================================
   if (selectedService) {
     const targetService = selectedService.name;
-    const candidateName = (profileName && profileName !== 'Customer' && profileName !== 'WhatsApp Customer' && profileName !== 'Instagram Customer')
+    const hasKnownName = profileName && profileName !== 'Customer' && profileName !== 'WhatsApp Customer' && profileName !== 'Instagram Customer' && profileName !== 'Instagram User';
+    const candidateName = hasKnownName
       ? extractCustomerName(profileName)
-      : (customer.name || 'Customer');
+      : (customer.name && customer.name !== 'Customer' && customer.name !== 'WhatsApp Customer' && customer.name !== 'Instagram Customer' && customer.name !== 'Instagram User' ? extractCustomerName(customer.name) : null);
 
-    // If channel does not provide a verified phone number (e.g. Instagram or masked WhatsApp):
+    // If channel does not provide a verified phone number (e.g. Instagram):
     if (!hasDetectedPhone) {
-      const askPhoneMsg = `Selected: *${targetService}* ✨\n\nPlease share your 10-digit mobile number to confirm your slot:`;
+      if (!candidateName || candidateName === 'Customer') {
+        const askNameMsg = `Selected: *${targetService}* ✨\n\nMay I know your full name to proceed with your booking?`;
+        const sendPromise = channel === 'whatsapp'
+          ? sendMetaWhatsAppMessage(channelUserId, askNameMsg)
+          : sendInstagramOutboundMessage(channelUserId, askNameMsg);
+
+        Object.assign(conversation, {
+          bot_step: 'awaiting_name',
+          pending_service: targetService,
+          pending_name: null,
+        });
+
+        const dbPromise = logBotTurnMessages({
+          conversationId: conversation.id,
+          inbound: { content: displayInput, metaMessageId },
+          outbound: { content: askNameMsg },
+          conversationUpdates: {
+            bot_step: 'awaiting_name',
+            pending_service: targetService,
+            pending_name: null,
+          },
+        });
+
+        await Promise.all([sendPromise, dbPromise]);
+        return { handled: true, step: 'awaiting_name', service: targetService };
+      }
+
+      // If name is already known (e.g. resolved from Instagram profile)
+      const askPhoneMsg = `Hi ${candidateName}! 👋 Selected: *${targetService}* ✨\n\nWhich car or bike do you drive? And please share your 10-digit mobile number to confirm your booking:`;
       const sendPromise = channel === 'whatsapp'
         ? sendMetaWhatsAppMessage(channelUserId, askPhoneMsg)
         : sendInstagramOutboundMessage(channelUserId, askPhoneMsg);
@@ -680,7 +704,7 @@ export async function processBotMessage({
     }
 
     // DIRECT 1-TAP FLOW: Phone detected (WhatsApp native user flow)
-    const finalName = candidateName;
+    const finalName = candidateName || 'Customer';
     const finalPhone = userPhoneCheck.cleanPhone || channelUserId;
 
     return await completeLeadCapture({
@@ -694,6 +718,47 @@ export async function processBotMessage({
       inboundInput: cleanInput,
       metaMessageId,
     });
+  }
+
+  // =========================================================================
+  // STEP 2B: AWAITING NAME
+  // =========================================================================
+  if (conversation.bot_step === 'awaiting_name') {
+    const serviceName = conversation.pending_service || 'Signature Detailing';
+    const extracted = extractCustomerName(cleanInput);
+    const finalName = extracted !== 'Customer' ? extracted : cleanInput.trim().slice(0, 40);
+
+    conversation.pending_name = finalName;
+    conversation.customer_name = finalName;
+    if (isSupabaseConfigured && conversation.id) {
+      supabase.from('conversations').update({ customer_name: finalName }).eq('id', conversation.id).then(() => {}, () => {});
+    }
+
+    const askVehicleAndPhone = `Nice to connect with you, ${finalName}! 🚗\n\nWhich car or bike do you drive? And please share your 10-digit mobile number to confirm your booking:`;
+    const sendPromise = channel === 'whatsapp'
+      ? sendMetaWhatsAppMessage(channelUserId, askVehicleAndPhone)
+      : sendInstagramOutboundMessage(channelUserId, askVehicleAndPhone);
+
+    Object.assign(conversation, {
+      bot_step: 'awaiting_phone_input',
+      pending_name: finalName,
+      pending_service: serviceName,
+    });
+
+    const dbPromise = logBotTurnMessages({
+      conversationId: conversation.id,
+      inbound: { content: displayInput, metaMessageId },
+      outbound: { content: askVehicleAndPhone },
+      conversationUpdates: {
+        bot_step: 'awaiting_phone_input',
+        pending_name: finalName,
+        pending_service: serviceName,
+        customer_name: finalName,
+      },
+    });
+
+    await Promise.all([sendPromise, dbPromise]);
+    return { handled: true, step: 'awaiting_phone_input', name: finalName, service: serviceName };
   }
 
   // =========================================================================
@@ -756,6 +821,16 @@ export async function processBotMessage({
       const finalName = candidateName;
       const finalPhone = phoneValidation.cleanPhone;
 
+      let vehicleInfo = null;
+      const cleanWithoutPhone = cleanInput
+        .replace(/(\+?[0-9][0-9\s-]{8,14}[0-9])/g, '')
+        .replace(/^(my number is|number is|phone is|phone:|ph:|my car is|car is|drive a)\s*/i, '')
+        .replace(/[,\-–.]/g, ' ')
+        .trim();
+      if (cleanWithoutPhone.length >= 3 && !NAME_STOP_WORDS.has(cleanWithoutPhone.toLowerCase())) {
+        vehicleInfo = { model: cleanWithoutPhone };
+      }
+
       return await completeLeadCapture({
         conversation,
         channel,
@@ -763,6 +838,7 @@ export async function processBotMessage({
         finalName,
         finalPhone,
         serviceName,
+        vehicleInfo,
         botConfig,
         inboundInput: cleanInput,
         metaMessageId,
@@ -838,6 +914,7 @@ async function completeLeadCapture({
   finalName,
   finalPhone,
   serviceName,
+  vehicleInfo = null,
   botConfig,
   inboundInput,
   metaMessageId,
@@ -903,6 +980,7 @@ async function completeLeadCapture({
         source: channel,
         status: 'new',
         notes: `Qualified automatically via ${channel.toUpperCase()} Bot.`,
+        vehicle: vehicleInfo,
         customer,
       }),
       logBotTurnMessages({

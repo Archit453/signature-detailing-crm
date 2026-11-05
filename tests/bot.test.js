@@ -39,27 +39,48 @@ async function runTests() {
   console.assert(res2.lead && res2.lead.status === 'new', 'Lead status should be new');
   console.log('✓ Step 2: 1-Tap Booking completed and lead registered:', res2.lead.service_name);
 
-  console.log('\n--- 3. Testing Instagram Interactive DM Flow (1st Message Greeting -> Staff Takeover) ---');
+  console.log('\n--- 3. Testing Instagram Interactive DM Flow (Cards + Full Qualification) ---');
   const freshIgUser = `ig_unit_test_${Date.now()}`;
 
-  // Step 1: IG 1st Message Greeting -> Dispatches carousel once, then automatically pauses bot for human takeover
+  // Step 1: IG Greeting -> Dispatches carousel cards without sacrificing cards
   const igRes1 = await processBotMessage({
     channel: 'instagram',
     channelUserId: freshIgUser,
     rawText: 'Hey',
   });
-  console.assert(igRes1.step === 'human_takeover', 'IG should transition to human_takeover after 1st message');
-  console.assert(igRes1.botPaused === true, 'Bot should be paused on Instagram after 1st message');
-  console.log('✓ IG Step 1: First message greeting dispatched & bot paused for human takeover');
+  console.assert(igRes1.step === 'awaiting_service', 'IG should await service selection with active bot');
+  console.assert(!igRes1.botPaused, 'Bot should remain active on Instagram');
+  console.log('✓ IG Step 1: First message greeting dispatched cards carousel with active bot');
 
-  // Step 2: Subsequent customer question -> Bot remains silenced, logged silently in CRM for staff
+  // Step 2: User taps package card button -> Prompts for customer name
   const igRes2 = await processBotMessage({
     channel: 'instagram',
     channelUserId: freshIgUser,
-    rawText: 'What is the price of ceramic coating?',
+    buttonPayload: 'SERVICE_ppf',
+    rawText: 'Paint Protection Film',
   });
-  console.assert(igRes2.botPaused === true, 'Bot should remain silenced for subsequent messages');
-  console.log('✓ IG Step 2: Subsequent messages logged silently without bot interruption');
+  console.assert(igRes2.step === 'awaiting_name', 'IG should await name input');
+  console.log('✓ IG Step 2: Package selected from card, prompted for customer name');
+
+  // Step 3: User provides their name -> Prompts for car & phone number
+  const igRes3 = await processBotMessage({
+    channel: 'instagram',
+    channelUserId: freshIgUser,
+    rawText: 'Archit Panda',
+  });
+  console.assert(igRes3.step === 'awaiting_phone_input', 'IG should await phone input');
+  console.assert(igRes3.name === 'Archit Panda', 'Customer name should be extracted');
+  console.log('✓ IG Step 3: Customer name captured, prompted for vehicle and phone number');
+
+  // Step 4: User provides vehicle & phone number -> Completes lead capture
+  const igRes4 = await processBotMessage({
+    channel: 'instagram',
+    channelUserId: freshIgUser,
+    rawText: 'Mahindra Thar, my number is 9861201770',
+  });
+  console.assert(igRes4.step === 'completed', 'IG should complete lead qualification');
+  console.assert(igRes4.lead && igRes4.lead.status === 'new', 'Lead should be registered in CRM');
+  console.log('✓ IG Step 4: Mobile & vehicle captured, lead confirmed in CRM:', igRes4.lead.service_name);
 
   console.log('\n========================================');
   console.log('ALL BOT & VALIDATION TESTS PASSED! 🎉');
