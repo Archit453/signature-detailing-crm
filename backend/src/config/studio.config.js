@@ -29,24 +29,24 @@ export const STUDIO_CONFIG = {
   // ==========================================
   bot_messages: {
     // Asked when user first messages the bot
-    welcome_text: 'Greetings from Signature Bot 🚗✨\nWhich service are you interested in today?',
+    welcome_text: 'Hi! Which service are you looking for today? 🚗✨',
     
     // Asked on Instagram to get phone number
-    phone_prompt_ig: 'Please share your 10-digit mobile number so our detailing specialist can reach out.',
+    phone_prompt_ig: 'Please share your 10-digit mobile number:',
     
     // Confirmation messages for phone numbers
-    phone_confirm_wa: 'We have your contact number as {{phone}}. Is this the best number to reach you?',
-    phone_confirm_ig: 'Thanks! We have your contact number as {{phone}}. Is this correct?',
+    phone_confirm_wa: 'Confirm contact number {{phone}}?',
+    phone_confirm_ig: 'Confirm contact number {{phone}}?',
     
     // Error message if phone number format is wrong
-    phone_invalid: 'That does not look like a valid phone number. Please enter your 10-digit mobile number.',
+    phone_invalid: 'Please enter a valid 10-digit mobile number:',
     
     // Final closing message after lead is captured
-    completion_text: 'Thank you! Our detailing specialist will call you shortly to discuss your {{service}} requirements and schedule your appointment. 🚗✨',
+    completion_text: 'Request Received ✅ {{service}} booked. We\'ll call you shortly! 📞',
     
     // Comment Automation
     comment_public_reply: 'Hi @{{username}}! Check your DM 📩',
-    comment_private_dm: 'Greetings from Signature Bot 🚗✨\nWhich service are you interested in today?',
+    comment_private_dm: 'Hi! Which service are you looking for today? 🚗✨',
   },
 
   // ==========================================

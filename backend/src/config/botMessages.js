@@ -20,9 +20,7 @@ export const BOT_MESSAGES = {
   // --------------------------------------------------------------------------
   // 1. WELCOME & GREETING (Phase 1: When customer first messages on WhatsApp/IG)
   // --------------------------------------------------------------------------
-  welcome:
-    'Greetings from Signature Bot 🚗✨\n' +
-    'Which service are you interested in today?',
+  welcome: 'Hi! Which service are you looking for today? 🚗✨',
 
   btn_view_packages: 'View Packages 🚗',
   services_menu_title: 'Select a Detailing Package 🚗✨',
@@ -32,11 +30,8 @@ export const BOT_MESSAGES = {
   // --------------------------------------------------------------------------
   booking_confirmed:
     'Request Received ✅\n' +
-    '{{service}} selected.\n' +'\n'+
-    '📞 We\'ll call you shortly on {{phone}} to confirm your appointment.\n\n' +
-    'Need help sooner?\n' +
-    '📱 {{studioPhone}}\n\n' +
-    '🤖 _Greetings from Signature Bot_',
+    '{{service}} booked for {{phone}}.\n' +
+    'We\'ll call you shortly! 📞',
 
   btn_change_phone: 'Change Phone Number',
 
@@ -44,11 +39,12 @@ export const BOT_MESSAGES = {
   // 3. STUDIO LOCATION (Auto-dispatched immediately after booking card)
   // --------------------------------------------------------------------------
   studio_location:
-    '📍 *{{studioName}} Studio Details*\n' +
-    '🏢 {{address}}\n\n' +
-    '📞 *Helpline / Call:* {{studioPhone}}\n\n' +
-    '🌐 *Official Website:* {{websiteUrl}}\n\n' +
-    '🗺️ *Google Maps Navigation:* {{mapsUrl}}',
+    '📍 *{{studioName}}*\n' +
+    '🏢 {{address}}\n' +
+    '📞 {{studioPhone}}\n' +
+    '💬 WhatsApp: {{whatsappUrl}}\n' +
+    '🌐 {{websiteUrl}}\n' +
+    '🗺️ {{mapsUrl}}',
 
   btn_studio_location: '📍 Studio Location',
 
@@ -56,11 +52,8 @@ export const BOT_MESSAGES = {
   // 4. POST-COMPLETION RE-GREETING (When customer messages again after booking)
   // --------------------------------------------------------------------------
   already_booked:
-    'Booking already received ✅\n' +
-    'Our detailing team will call you shortly.\n\n' +
-    'Need immediate help?\n' +
-    '📱 {{studioPhone}}\n\n' +
-    '🤖 _Greetings from Signature Bot_',
+    'Booking received ✅ We\'ll call you shortly!\n' +
+    'Helpline: {{studioPhone}}',
 
   // --------------------------------------------------------------------------
   // 5. PHONE NUMBER CHANGE & INPUT PROMPTS
@@ -69,50 +62,45 @@ export const BOT_MESSAGES = {
 
   phone_updated:
     'Number updated to {{phone}} ✅\n' +
-    'Our detailing team will call you here to confirm.',
+    'We\'ll call you here!',
 
   phone_invalid: 'Please enter a valid 10-digit mobile number:',
 
   // Prompt used on Instagram to collect phone number
-  phone_prompt_ig: 'Please share your 10-digit mobile number so our detailing specialist can reach out.',
+  phone_prompt_ig: 'Please share your 10-digit mobile number:',
 
   // --------------------------------------------------------------------------
   // 6. BOT TRANSPARENCY DISCLAIMER (Appended in Phase 2)
   // --------------------------------------------------------------------------
-  bot_disclaimer: '\n\n🤖 I am just a Bot',
+  bot_disclaimer: '',
 
   // --------------------------------------------------------------------------
   // 7. FALLBACK / DIRECT HELP (When user types unrecognized message)
   // --------------------------------------------------------------------------
-  fallback: '🤖 I am just a Bot. For direct assistance, call our studio at {{studioPhone}}.',
+  fallback: 'How can we help? Choose an option below or call {{studioPhone}}:',
 
   // --------------------------------------------------------------------------
   // 8. STUDIO WEBSITE INFO
   // --------------------------------------------------------------------------
   website_info:
-    '🌐 *Signature Detailing Official Website*\n\n' +
-    'Explore our detailing packages, paint protection films (PPF), ceramic coatings, and studio gallery:\n' +
-    '👉 {{websiteUrl}}\n\n' +
-    'Feel free to choose an option below:',
+    '🌐 Visit our website:\n' +
+    '👉 {{websiteUrl}}',
 
   // --------------------------------------------------------------------------
   // 8B. HUMAN AGENT TAKEOVER & CLOSING CARD
   // --------------------------------------------------------------------------
   human_handover:
-    'I have alerted our detailing specialist to assist you personally 👤\n\n' +
-    'Our team will message you here shortly. If you need immediate assistance or want to visit us directly:\n\n' +
-    '📞 *Helpline / Call:* {{studioPhone}}\n' +
-    '🌐 *Website:* {{websiteUrl}}\n' +
-    '📍 *Studio Address:*\n{{address}}\n' +
-    '🗺️ *Google Maps:* {{mapsUrl}}',
+    'Specialist alerted 👤 We\'ll message you shortly!\n\n' +
+    '📞 {{studioPhone}}\n' +
+    '💬 WhatsApp: {{whatsappUrl}}\n' +
+    '🌐 {{websiteUrl}}\n' +
+    '📍 {{mapsUrl}}',
 
   // --------------------------------------------------------------------------
   // 9. INSTAGRAM COMMENT AUTOMATION (Public Reel Reply & Private DM)
   // --------------------------------------------------------------------------
   comment_public_reply: 'Hi @{{username}}! Check your DM 📩',
-  comment_private_dm:
-    'Greetings from Signature Bot 🚗✨\n' +
-    'Which service are you interested in today?',
+  comment_private_dm: 'Hi! Which service are you looking for today? 🚗✨',
 };
 
 /**
@@ -125,12 +113,14 @@ export function formatMessage(keyOrTemplate, data = {}) {
   let template = BOT_MESSAGES[keyOrTemplate] || keyOrTemplate || '';
   if (typeof template !== 'string') return '';
 
-  const defaultWebsite = config.studio?.websiteUrl || 'https://signature-detailing-landing-page.signaturedetailing-bbsr.workers.dev/';
-  const defaultStudioPhone = config.studio?.phone || '+91 84568 69931';
-  const defaultOwnerPhone = config.studio?.ownerPhone || '+91 84568 69931';
+  const defaultWebsite = config.studio?.websiteUrl || 'https://signature-detailing.pages.dev/';
+  const defaultStudioPhone = config.studio?.phone || '+91 98612 01770';
+  const defaultOwnerPhone = config.studio?.ownerPhone || '+91 98612 01770';
   const defaultStudioName = config.studio?.name || 'Signature Detailing';
   const defaultAddress = config.studio?.address || 'Plot no - 55, Pahala, Before Utkal Mahindra Service, Bhubaneswar, Odisha 752101';
   const defaultMaps = config.studio?.googleMapsLink || 'https://maps.app.goo.gl/TP4S4MommkGLpAzP7';
+  const cleanPhone = defaultStudioPhone.replace(/\D/g, '');
+  const defaultWhatsApp = `https://wa.me/${cleanPhone}`;
 
   const merged = {
     websiteUrl: defaultWebsite,
@@ -140,6 +130,8 @@ export function formatMessage(keyOrTemplate, data = {}) {
     studioName: defaultStudioName,
     address: defaultAddress,
     mapsUrl: defaultMaps,
+    whatsappUrl: defaultWhatsApp,
+    cleanPhone,
     ...data,
   };
 

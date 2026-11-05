@@ -394,6 +394,9 @@ export async function processBotMessage({
     const websiteUrl = studioConfig.website_url || getStudioWebsite();
     const mapsUrl = studioConfig.google_maps_link || 'https://maps.app.goo.gl/TP4S4MommkGLpAzP7';
 
+    const cleanPhone = phone.replace(/\D/g, '');
+    const whatsappUrl = `https://wa.me/${cleanPhone}`;
+
     const handoverMsg = formatMessage('human_handover', {
       studioName,
       address,
@@ -401,11 +404,13 @@ export async function processBotMessage({
       studioPhone: phone,
       websiteUrl,
       mapsUrl,
+      whatsappUrl,
     });
 
     const closingButtons = [
-      { type: 'web_url', title: '🌐 Visit Website', url: websiteUrl },
+      { type: 'web_url', title: '💬 WhatsApp', url: whatsappUrl },
       { type: 'web_url', title: '📍 Google Maps', url: mapsUrl },
+      { type: 'web_url', title: '🌐 Visit Website', url: websiteUrl },
     ];
 
     const sendPromise = channel === 'whatsapp'
@@ -732,7 +737,7 @@ export async function processBotMessage({
     // If channel does not provide a verified phone number (e.g. Instagram):
     if (!hasDetectedPhone) {
       if (!candidateName || candidateName === 'Customer') {
-        const askNameMsg = `Selected: *${targetService}* ✨\n\nMay I know your full name to proceed with your booking?`;
+        const askNameMsg = `Selected: *${targetService}* ✨\nMay I have your name?`;
         const sendPromise = channel === 'whatsapp'
           ? sendMetaWhatsAppMessage(channelUserId, askNameMsg)
           : sendInstagramOutboundMessage(channelUserId, askNameMsg);
@@ -759,7 +764,7 @@ export async function processBotMessage({
       }
 
       // If name is already known (e.g. resolved from Instagram profile)
-      const askPhoneMsg = `Hi ${candidateName}! 👋 Selected: *${targetService}* ✨\n\nWhich car or bike do you drive? And please share your 10-digit mobile number to confirm your booking:`;
+      const askPhoneMsg = `Thanks ${candidateName}! 🚗 Selected: *${targetService}*\nWhich vehicle do you drive, and what's your 10-digit mobile number?`;
       const sendPromise = channel === 'whatsapp'
         ? sendMetaWhatsAppMessage(channelUserId, askPhoneMsg)
         : sendInstagramOutboundMessage(channelUserId, askPhoneMsg);
@@ -816,7 +821,7 @@ export async function processBotMessage({
       supabase.from('conversations').update({ customer_name: finalName }).eq('id', conversation.id).then(() => {}, () => {});
     }
 
-    const askVehicleAndPhone = `Nice to connect with you, ${finalName}! 🚗\n\nWhich car or bike do you drive? And please share your 10-digit mobile number to confirm your booking:`;
+    const askVehicleAndPhone = `Thanks ${finalName}! 🚗\nWhich vehicle do you drive, and what's your 10-digit mobile number?`;
     const sendPromise = channel === 'whatsapp'
       ? sendMetaWhatsAppMessage(channelUserId, askVehicleAndPhone)
       : sendInstagramOutboundMessage(channelUserId, askVehicleAndPhone);
@@ -979,6 +984,9 @@ export async function processBotMessage({
   // If customer asked unrecognized questions 2+ times in a row, auto-handover to human!
   if (currentFallback >= 2) {
     fallbackTracker.delete(channelUserId);
+    const cleanPhone = studioPhone.replace(/\D/g, '');
+    const whatsappUrl = `https://wa.me/${cleanPhone}`;
+
     const handoverMsg = formatMessage('human_handover', {
       studioName,
       address,
@@ -986,11 +994,13 @@ export async function processBotMessage({
       studioPhone,
       websiteUrl,
       mapsUrl,
+      whatsappUrl,
     });
 
     const closingButtons = [
-      { type: 'web_url', title: '🌐 Visit Website', url: websiteUrl },
+      { type: 'web_url', title: '💬 WhatsApp', url: whatsappUrl },
       { type: 'web_url', title: '📍 Google Maps', url: mapsUrl },
+      { type: 'web_url', title: '🌐 Visit Website', url: websiteUrl },
     ];
 
     const sendPromise = channel === 'whatsapp'
@@ -1079,6 +1089,8 @@ async function completeLeadCapture({
   const studioName = studioConfig.studio_name || getStudioName();
   const address = studioConfig.address || getStudioAddress();
   const phone = studioConfig.phone || getStudioPhone();
+  const cleanPhone = phone.replace(/\D/g, '');
+  const whatsappUrl = `https://wa.me/${cleanPhone}`;
   const websiteUrl = studioConfig.website_url || getStudioWebsite();
   const mapsUrl = studioConfig.google_maps_link || 'https://maps.app.goo.gl/TP4S4MommkGLpAzP7';
   const locationMsg = formatMessage('studio_location', {
@@ -1088,11 +1100,13 @@ async function completeLeadCapture({
     studioPhone: phone,
     websiteUrl,
     mapsUrl,
+    whatsappUrl,
   });
 
   const closingButtons = [
-    { type: 'web_url', title: '🌐 Visit Website', url: websiteUrl },
+    { type: 'web_url', title: '💬 WhatsApp', url: whatsappUrl },
     { type: 'web_url', title: '📍 Google Maps', url: mapsUrl },
+    { type: 'web_url', title: '🌐 Visit Website', url: websiteUrl },
   ];
 
   // 1. Send outbound message immediately to user (instant delivery!)
