@@ -8,6 +8,47 @@ import { BOT_MESSAGES, formatMessage } from '../config/botMessages.js';
 let inMemoryComments = [];
 const processedCommentIds = new Set();
 
+let cachedConnectedUsername = null;
+let cachedConnectedToken = '';
+let cachedConnectedExpiry = 0;
+
+/**
+ * Dynamically queries Meta Graph API to resolve the connected Instagram username
+ * completely agnostic of account name or client (no hardcoding). Cached for 10 minutes.
+ */
+async function getConnectedAccountUsername(token) {
+  if (!token) return null;
+  const now = Date.now();
+  if (cachedConnectedUsername && cachedConnectedToken === token && cachedConnectedExpiry > now) {
+    return cachedConnectedUsername;
+  }
+  try {
+    const isIGToken = token.startsWith('IGAA') || token.startsWith('IGA');
+    const url = isIGToken
+      ? `https://graph.instagram.com/v21.0/me?fields=id,username&access_token=${encodeURIComponent(token)}`
+      : `https://graph.facebook.com/v21.0/me?fields=id,name,username&access_token=${encodeURIComponent(token)}`;
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 3000);
+    const res = await fetch(url, { signal: controller.signal });
+    clearTimeout(timeoutId);
+    if (res.ok) {
+      const data = await res.json();
+      const rawUser = data.username ? data.username.replace(/^@/, '').trim().toLowerCase() : null;
+      if (rawUser) {
+        cachedConnectedUsername = rawUser;
+        cachedConnectedToken = token;
+        cachedConnectedExpiry = now + 10 * 60 * 1000;
+        return cachedConnectedUsername;
+      }
+    }
+  } catch (err) {
+    // Non-blocking fallback
+  }
+  return null;
+}
+
+
 /**
  * Dispatches outbound DM to Instagram user via Meta Graph API
  */
@@ -427,14 +468,22 @@ export async function handleIncomingInstagramComment(commentData, entryAccountId
     return { ignored: true, reason: 'own_bot_reply' };
   }
 
-  // Guard 5: Self-Reply Protection (Don't reply to our own account)
+  // Guard 5: Self-Reply Protection (Dynamic - protects ANY connected client account)
   const integrations = await getSetting('integrations');
+  const token = integrations?.instagram?.page_access_token || config.instagram.pageAccessToken;
   const pageId = String(integrations?.instagram?.page_id || config.instagram.pageId || '');
+  const connectedUsername = await getConnectedAccountUsername(token);
+
   const isOwnAccount =
     Boolean(
       fromId && (
         (pageId && fromId === pageId) ||
         (entryAccountId && fromId === String(entryAccountId))
+      )
+    ) ||
+    Boolean(
+      fromUsername && connectedUsername && (
+        fromUsername.toLowerCase() === connectedUsername.toLowerCase()
       )
     ) ||
     Boolean(
