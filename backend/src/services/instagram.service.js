@@ -148,7 +148,7 @@ export async function sendInstagramOutboundMessage(recipientId, text, options = 
   try {
     const isIGToken = token.startsWith('IGAA') || token.startsWith('IGA');
     const targetAccountId = options.accountId || integrations?.instagram?.page_id || config.instagram.pageId;
-    const accountSegment = (targetAccountId && targetAccountId !== '1044542855126226' && /^\d+$/.test(targetAccountId))
+    const accountSegment = (targetAccountId && targetAccountId !== 'dummy' && /^\d+$/.test(targetAccountId))
       ? targetAccountId
       : 'me';
 
@@ -423,7 +423,7 @@ export async function sendInstagramPrivateCommentReply(commentId, messageText, o
   try {
     const isIGToken = token.startsWith('IGAA') || token.startsWith('IGA');
     const targetAccountId = options.accountId || integrations?.instagram?.page_id || config.instagram.pageId;
-    const accountSegment = (targetAccountId && targetAccountId !== '1044542855126226' && /^\d+$/.test(targetAccountId))
+    const accountSegment = (targetAccountId && targetAccountId !== 'dummy' && /^\d+$/.test(targetAccountId))
       ? targetAccountId
       : 'me';
 

@@ -59,9 +59,9 @@ let inMemoryServices = [...STUDIO_PACKAGES];
 const CACHE_TTL_MS = 3600000; // 1 hour TTL
 const settingsCache = new Map();
 
-// Pre-warm settings cache with defaults so bot responds in 0ms without database roundtrips
+// Pre-warm settings cache with general/bot defaults, but NEVER integrations (always pull fresh from database)
 for (const [k, v] of Object.entries(DEFAULT_SETTINGS)) {
-  if (k !== 'integrations' || (v?.whatsapp?.token && v?.instagram?.page_access_token)) {
+  if (k !== 'integrations') {
     settingsCache.set(k, { value: v, expiresAt: Date.now() + CACHE_TTL_MS });
   }
 }
