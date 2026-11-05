@@ -327,12 +327,16 @@ export async function diagnoseInstagramIntegration(req, res) {
     results.tests['facebook_me_accounts'] = { status: r3.status, data: await r3.json() };
   } catch (e) { results.tests['facebook_me_accounts'] = { error: e.message }; }
 
-  // 4. Test outbound dispatch
-  try {
-    const { sendInstagramOutboundMessage } = await import('../services/instagram.service.js');
-    const sendResult = await sendInstagramOutboundMessage(testRecipient, 'Diagnostic test from Signature Detailing', { accountId: pageId });
-    results.tests['outbound_dispatch'] = sendResult;
-  } catch (e) { results.tests['outbound_dispatch'] = { error: e.message }; }
+  // 4. Test outbound dispatch (only if ?test_send=true is explicitly passed)
+  if (req.query.test_send === 'true') {
+    try {
+      const { sendInstagramOutboundMessage } = await import('../services/instagram.service.js');
+      const sendResult = await sendInstagramOutboundMessage(testRecipient, 'Diagnostic test from Signature Detailing', { accountId: pageId });
+      results.tests['outbound_dispatch'] = sendResult;
+    } catch (e) { results.tests['outbound_dispatch'] = { error: e.message }; }
+  } else {
+    results.tests['outbound_dispatch'] = { status: 'skipped', note: 'Pass ?test_send=true to execute live dispatch' };
+  }
 
   return successResponse(res, results, 'Instagram diagnostic completed');
 }
