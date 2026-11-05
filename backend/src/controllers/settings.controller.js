@@ -315,6 +315,25 @@ export async function diagnoseInstagramIntegration(req, res) {
     results.tests['dispatch_via_graph_instagram'] = { status: r1d.status, data: await r1d.json() };
   } catch (e) { results.tests['dispatch_via_graph_instagram'] = { error: e.message }; }
 
+  // 1e. Test dispatch via {pageId}/messages
+  try {
+    const r1e = await fetch(`https://graph.facebook.com/v21.0/${pageId}/messages?access_token=${encodeURIComponent(token)}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        recipient: { id: testRecipient },
+        message: { text: `Test via ${pageId}` }
+      })
+    });
+    results.tests[`dispatch_via_${pageId}`] = { status: r1e.status, data: await r1e.json() };
+  } catch (e) { results.tests[`dispatch_via_${pageId}`] = { error: e.message }; }
+
+  // 1f. Inspect debug_token
+  try {
+    const r1f = await fetch(`https://graph.facebook.com/debug_token?input_token=${encodeURIComponent(token)}&access_token=${encodeURIComponent(token)}`);
+    results.tests['debug_token'] = { status: r1f.status, data: await r1f.json() };
+  } catch (e) { results.tests['debug_token'] = { error: e.message }; }
+
   // 2. Check graph.facebook.com/{pageId}
   try {
     const r2 = await fetch(`https://graph.facebook.com/v21.0/${pageId}?fields=id,name,username,instagram_business_account&access_token=${encodeURIComponent(token)}`);

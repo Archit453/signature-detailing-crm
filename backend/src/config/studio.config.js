@@ -8,7 +8,7 @@ export const STUDIO_CONFIG = {
   general: {
     studio_name: config.studio?.name || 'Signature Detailing',
     owner_phone: process.env.OWNER_PHONE || '+91 84568 69931',
-    owner_instagram: (process.env.OWNER_INSTAGRAM || 'das_vineet11').replace(/^@/, ''),
+    owner_instagram: (process.env.OWNER_INSTAGRAM || '').replace(/^@/, ''),
     owner_name: process.env.OWNER_NAME || 'Owner',
     phone: config.studio?.phone || '+91 98612 01770',
     email: config.studio?.email || 'signaturedetailing.bbsr@gmail.com',
