@@ -21,7 +21,9 @@ import {
   Save,
   Mail,
   Smartphone,
-  Share2
+  Share2,
+  Target,
+  Sparkles
 } from 'lucide-react';
 import { InstagramIcon, WhatsAppIcon } from './Icons';
 import { api } from '../lib/api';
@@ -39,6 +41,8 @@ export const SettingsView: React.FC = () => {
   const [waPingMsg, setWaPingMsg] = useState<string>('');
   const [igPingStatus, setIgPingStatus] = useState<'idle' | 'testing' | 'online' | 'error'>('idle');
   const [igPingMsg, setIgPingMsg] = useState<string>('');
+  const [adLeadSimStatus, setAdLeadSimStatus] = useState<'idle' | 'simulating' | 'success' | 'error'>('idle');
+  const [adLeadSimMsg, setAdLeadSimMsg] = useState<string>('');
 
   // General Studio Settings state
   const [isSavingProfile, setIsSavingProfile] = useState(false);
@@ -74,6 +78,7 @@ export const SettingsView: React.FC = () => {
 
   const whatsappWebhookUrl = `${crmOrigin}/api/webhooks/whatsapp`;
   const instagramWebhookUrl = `${crmOrigin}/api/webhooks/instagram`;
+  const leadAdWebhookUrl = `${crmOrigin}/api/webhooks/ads/lead`;
 
   // Fetch settings from database on mount
   useEffect(() => {
@@ -161,6 +166,30 @@ export const SettingsView: React.FC = () => {
     } catch (err: any) {
       setWaPingStatus('error');
       setWaPingMsg(err.message || 'Network error reaching webhook endpoint');
+    }
+  };
+
+  const handleSimulateAdLead = async () => {
+    setAdLeadSimStatus('simulating');
+    setAdLeadSimMsg('');
+    try {
+      const res = await api.simulateAdLead({
+        name: 'Rahul Sharma (Test Ad Lead)',
+        phone: '9861201770',
+        service: 'Ceramic Coating',
+        vehicle: 'Mahindra Thar Roxx',
+        email: 'rahul.thar@example.com',
+      });
+      if (res && res.success) {
+        setAdLeadSimStatus('success');
+        setAdLeadSimMsg(`Captured Lead #${res.lead?.id ? String(res.lead.id).slice(0, 8) : 'OK'}! Check Leads Kanban Board.`);
+      } else {
+        setAdLeadSimStatus('error');
+        setAdLeadSimMsg('Simulation failed');
+      }
+    } catch (e: any) {
+      setAdLeadSimStatus('error');
+      setAdLeadSimMsg(e.message || 'Simulation network error');
     }
   };
 
@@ -349,7 +378,7 @@ export const SettingsView: React.FC = () => {
                 </span>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 {/* WhatsApp Webhook Card */}
                 <div className={`p-5 rounded-2xl border transition-all ${
                   isLight ? 'bg-white border-slate-200 shadow-sm' : 'bg-slate-900/50 border-slate-800'
@@ -507,6 +536,73 @@ export const SettingsView: React.FC = () => {
                           {tokenInputs.instagram_verify_token}
                         </code>
                         <CopyButton id="ig-token" text={tokenInputs.instagram_verify_token} />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Instagram & Meta Ad Forms (Lead Ads) Card */}
+                <div className={`p-5 rounded-2xl border transition-all ${
+                  isLight ? 'bg-white border-slate-200 shadow-sm' : 'bg-slate-900/50 border-slate-800'
+                }`}>
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 rounded-lg bg-indigo-500/10 flex items-center justify-center shrink-0">
+                        <Target className="w-4 h-4 text-indigo-500" />
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <h3 className="font-bold text-sm text-indigo-500">Instagram Ad Forms</h3>
+                          <span className="text-[10px] px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-500 font-bold border border-indigo-500/20">
+                            100% Dynamic
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-slate-400">Meta Instant Forms & Paid Ads</p>
+                      </div>
+                    </div>
+
+                    <button
+                      onClick={handleSimulateAdLead}
+                      disabled={adLeadSimStatus === 'simulating'}
+                      className="px-2.5 py-1 rounded-lg text-xs font-semibold flex items-center gap-1.5 border border-slate-200 dark:border-slate-700 hover:border-indigo-500 transition-colors text-indigo-500"
+                    >
+                      <Sparkles className={`w-3 h-3 ${adLeadSimStatus === 'simulating' ? 'animate-spin' : ''}`} />
+                      <span>{adLeadSimStatus === 'simulating' ? 'Simulating...' : 'Simulate Lead'}</span>
+                    </button>
+                  </div>
+
+                  {adLeadSimStatus === 'success' && (
+                    <div className="mb-3 p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-xs flex items-center gap-1.5">
+                      <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+                      <span className="truncate">{adLeadSimMsg}</span>
+                    </div>
+                  )}
+                  {adLeadSimStatus === 'error' && (
+                    <div className="mb-3 p-2 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-500 text-xs flex items-center gap-1.5">
+                      <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                      <span className="truncate">{adLeadSimMsg}</span>
+                    </div>
+                  )}
+
+                  <div className="space-y-3">
+                    <div>
+                      <div className="text-[11px] text-slate-400 font-medium mb-1">Direct Ad Webhook URL</div>
+                      <div className={`flex items-center justify-between p-2.5 rounded-xl border ${
+                        isLight ? 'bg-slate-50 border-slate-200' : 'bg-slate-950/60 border-slate-800'
+                      }`}>
+                        <code className="text-[11px] font-mono text-slate-700 dark:text-slate-300 truncate select-all mr-2">
+                          {leadAdWebhookUrl}
+                        </code>
+                        <CopyButton id="lead-ad-url" text={leadAdWebhookUrl} />
+                      </div>
+                    </div>
+
+                    <div>
+                      <div className="text-[11px] text-slate-400 font-medium mb-1">Universal Field Normalizer</div>
+                      <div className={`p-2 rounded-xl border text-[10px] text-slate-500 dark:text-slate-400 leading-relaxed ${
+                        isLight ? 'bg-slate-50 border-slate-200' : 'bg-slate-950/60 border-slate-800'
+                      }`}>
+                        ⚡ Auto-maps Name, Phone, Car Model & Service from any ad agency question wording without manual mapping.
                       </div>
                     </div>
                   </div>
@@ -849,6 +945,41 @@ export const SettingsView: React.FC = () => {
                   </div>
                   <p className="text-slate-500 dark:text-slate-400 leading-relaxed">
                     Under WhatsApp → Configuration, enter the Callback URL <code className="bg-slate-200 dark:bg-slate-800 px-1 rounded">{whatsappWebhookUrl}</code> and Verify Token <code className="bg-slate-200 dark:bg-slate-800 px-1 rounded">{tokenInputs.whatsapp_verify_token}</code>. Subscribe to the <strong>messages</strong> field.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Instagram Lead Ads Guide */}
+            <div className={`p-6 rounded-2xl border ${
+              isLight ? 'bg-white border-slate-200 shadow-sm' : 'bg-slate-900/50 border-slate-800'
+            }`}>
+              <div className="flex items-center gap-2.5 pb-4 border-b border-slate-200 dark:border-slate-800">
+                <div className="w-8 h-8 rounded-lg bg-indigo-500/10 flex items-center justify-center shrink-0">
+                  <Target className="w-4 h-4 text-indigo-500" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-base text-indigo-500">Instagram Lead Ads (Instant Forms) Guide</h3>
+                  <p className="text-xs text-slate-400">Direct lead capture from Instagram & Facebook Ads into CRM.</p>
+                </div>
+              </div>
+
+              <div className="mt-5 space-y-3 text-xs">
+                <div className={`p-4 rounded-xl border ${isLight ? 'bg-slate-50 border-slate-200' : 'bg-slate-950/40 border-slate-800'}`}>
+                  <div className="font-bold text-sm text-slate-900 dark:text-white mb-1">
+                    1. Subscribe to the 'leadgen' Webhook on Meta
+                  </div>
+                  <p className="text-slate-500 dark:text-slate-400 leading-relaxed">
+                    In <a href="https://developers.facebook.com" target="_blank" rel="noreferrer" className="text-indigo-500 underline">Meta Developer Portal</a>, go to <strong>Your App → Webhooks → Page</strong> (or Instagram). Add Callback URL <code className="bg-slate-200 dark:bg-slate-800 px-1 rounded">{instagramWebhookUrl}</code> and subscribe to the <strong>leadgen</strong> field.
+                  </p>
+                </div>
+
+                <div className={`p-4 rounded-xl border ${isLight ? 'bg-slate-50 border-slate-200' : 'bg-slate-950/40 border-slate-800'}`}>
+                  <div className="font-bold text-sm text-slate-900 dark:text-white mb-1">
+                    2. Test Free in 30 Seconds with Meta Lead Ads Testing Tool
+                  </div>
+                  <p className="text-slate-500 dark:text-slate-400 leading-relaxed">
+                    Visit <a href="https://developers.facebook.com/tools/lead-ads-testing" target="_blank" rel="noreferrer" className="text-indigo-500 underline">Meta Lead Ads Testing Tool</a>, select your Page and Instant Form, and click <strong>Create Lead</strong>. Or use the <strong>Simulate Lead</strong> button in the Webhooks tab above!
                   </p>
                 </div>
               </div>

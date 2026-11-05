@@ -61,6 +61,12 @@ export const api = {
   getInstagramComments: () =>
     fetchJson<any[]>('/inbox/instagram/comments'),
 
+  simulateAdLead: (payload: { name: string; phone: string; service: string; vehicle?: string; email?: string }) =>
+    fetchJson<{ status: string; success: boolean; lead: any; prospectNotified?: boolean }>('/webhooks/ads/lead', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+
   // Leads & Pipeline with LocalStorage Fallback & Cache
   getLeads: async (status?: string, search?: string) => {
     try {

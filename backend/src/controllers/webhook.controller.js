@@ -2,6 +2,7 @@ import { config } from '../config/env.js';
 import { getSetting } from '../services/settings.service.js';
 import { processBotMessage, findOrCreateInstagramConversation } from '../services/bot.service.js';
 import { handleIncomingInstagramComment } from '../services/instagram.service.js';
+import { resolveMetaLeadGen, processIncomingAdLead } from '../services/leadAd.service.js';
 import {
   findOrCreateWhatsAppConversation,
   logWhatsAppMessage,
@@ -261,6 +262,27 @@ export async function handleInstagramWebhook(req, res) {
           if ((change.field === 'comments' || change.field === 'live_comments') && change.value) {
             await handleIncomingInstagramComment(change.value, entryAccountId);
           }
+
+          // 3. Meta Instagram Lead Ad Instant Forms via entry.changes
+          if (change.field === 'leadgen' && change.value) {
+            const leadgenId = change.value.leadgen_id || change.value.id;
+            if (leadgenId) {
+              console.log(`[Meta Lead Ads Webhook] Incoming leadgen event: ${leadgenId} (Page ${entryAccountId || change.value.page_id})`);
+              try {
+                const leadDetails = await resolveMetaLeadGen(leadgenId);
+                await processIncomingAdLead({
+                  ...leadDetails,
+                  form_id: change.value.form_id,
+                  ad_id: change.value.ad_id,
+                  adgroup_id: change.value.adgroup_id,
+                  campaign_id: change.value.campaign_id,
+                  page_id: entryAccountId || change.value.page_id,
+                });
+              } catch (leadErr) {
+                console.error('[Meta Lead Ads Resolution Error]', leadErr);
+              }
+            }
+          }
         }
       }
     }
@@ -270,5 +292,77 @@ export async function handleInstagramWebhook(req, res) {
     if (!res.headersSent) {
       res.status(200).json({ status: 'EVENT_RECEIVED' });
     }
+  }
+}
+
+/**
+ * Direct & Simulator Lead Ad Webhook Handshake (GET)
+ */
+export async function verifyDirectLeadAdWebhook(req, res) {
+  const mode = req.query['hub.mode'];
+  const token = req.query['hub.verify_token'];
+  const challenge = req.query['hub.challenge'];
+
+  const integrations = await getSetting('integrations');
+  const configuredVerifyToken = integrations?.instagram?.verify_token || config.instagram?.verifyToken || 'signature_ig_verify_secret';
+
+  if (mode === 'subscribe' && token === configuredVerifyToken) {
+    console.log('[Lead Ad Webhook] Verification challenge verified successfully.');
+    return res.status(200).send(challenge);
+  }
+
+  return res.status(200).json({
+    status: 'ACTIVE',
+    endpoint: 'Instagram & Meta Lead Ads Webhook',
+    message: 'Ready to receive direct and Meta Instant Form leads',
+  });
+}
+
+/**
+ * Direct & Simulator Lead Ad Webhook Handler (POST)
+ * Supports Meta Lead Ads Testing Tool, In-CRM Simulator, Zapier, or landing page ad forms
+ */
+export async function handleDirectLeadAdWebhook(req, res) {
+  try {
+    const body = req.body || {};
+
+    // Case 1: Standard Meta Webhook payload wrapped in { object, entry: [ { changes: [ { field: 'leadgen' } ] } ] }
+    if (body.object && Array.isArray(body.entry)) {
+      for (const entry of body.entry) {
+        if (Array.isArray(entry.changes)) {
+          for (const change of entry.changes) {
+            if (change.field === 'leadgen' && change.value) {
+              const leadgenId = change.value.leadgen_id || change.value.id;
+              if (leadgenId) {
+                const leadDetails = await resolveMetaLeadGen(leadgenId);
+                const result = await processIncomingAdLead({
+                  ...leadDetails,
+                  form_id: change.value.form_id,
+                  ad_id: change.value.ad_id,
+                });
+                return res.status(200).json({ status: 'LEAD_PROCESSED', result });
+              }
+            }
+          }
+        }
+      }
+      return res.status(200).json({ status: 'EVENT_RECEIVED' });
+    }
+
+    // Case 2: Direct or Simulated JSON payload (e.g. { name, phone, service, vehicle, email })
+    const result = await processIncomingAdLead(body);
+    return res.status(200).json({
+      status: 'LEAD_CAPTURED',
+      success: true,
+      leadId: result.lead?.id,
+      lead: result.lead,
+      prospectNotified: result.prospectNotified,
+    });
+  } catch (err) {
+    console.error('[Direct Lead Ad Handler Error]', err);
+    return res.status(400).json({
+      success: false,
+      error: err.message || 'Failed to process ad lead',
+    });
   }
 }

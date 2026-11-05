@@ -4,6 +4,8 @@ import {
   handleWhatsAppWebhook,
   verifyInstagramWebhook,
   handleInstagramWebhook,
+  verifyDirectLeadAdWebhook,
+  handleDirectLeadAdWebhook,
 } from '../controllers/webhook.controller.js';
 
 const router = Router();
@@ -12,9 +14,12 @@ const router = Router();
 router.get('/whatsapp', verifyWhatsAppWebhook);
 router.post('/whatsapp', handleWhatsAppWebhook);
 
-// Instagram Webhook Handshake & Ingestion
+// Instagram Webhook Handshake & Ingestion (Direct DMs, Comments, and Leadgen)
 router.get('/instagram', verifyInstagramWebhook);
 router.post('/instagram', handleInstagramWebhook);
 
-export default router;
+// Dedicated Meta & External Lead Ads Endpoint (Direct forms, Lead Ads Testing Tool, In-CRM Simulator)
+router.get('/ads/lead', verifyDirectLeadAdWebhook);
+router.post('/ads/lead', handleDirectLeadAdWebhook);
 
+export default router;
