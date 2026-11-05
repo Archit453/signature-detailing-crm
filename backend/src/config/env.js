@@ -36,16 +36,20 @@ export const config = {
   },
 
   owner: {
-    phone: (process.env.OWNER_PHONE || '+91 84568 69931').trim(),
+    phone: (process.env.OWNER_PHONE || '917008426671').trim(),
+    instagramUsername: 'das_vineet11',
+    name: 'Vineet Das',
   },
 
   studio: {
     name: (process.env.STUDIO_NAME || 'Signature Detailing').trim(),
-    phone: (process.env.STUDIO_PHONE || '+91 84568 69931').trim(),
-    ownerPhone: (process.env.OWNER_PHONE || '+91 84568 69931').trim(),
+    phone: (process.env.STUDIO_PHONE || '+91 98612 01770').trim(),
+    ownerPhone: (process.env.OWNER_PHONE || '917008426671').trim(),
+    ownerInstagram: 'das_vineet11',
+    ownerName: 'Vineet Das',
     email: (process.env.STUDIO_EMAIL || 'signaturedetailing.bbsr@gmail.com').trim(),
     address: (process.env.STUDIO_ADDRESS || 'Plot no - 55, Pahala, Before Utkal Mahindra Service, Bhubaneswar, Odisha 752101').trim(),
-    websiteUrl: (process.env.STUDIO_WEBSITE || 'https://signature-detailing-landing-page.signaturedetailing-bbsr.workers.dev/').trim(),
+    websiteUrl: (process.env.STUDIO_WEBSITE || 'https://signature-detailing.pages.dev/').trim(),
     googleMapsLink: (process.env.STUDIO_MAPS_LINK || 'https://maps.app.goo.gl/TP4S4MommkGLpAzP7').trim(),
     reviewLink: (process.env.STUDIO_REVIEW_LINK || 'https://search.google.com/local/writereview?placeid=ChIJey82fSsLGToRc9YiRRlQJ2Q').trim(),
   },

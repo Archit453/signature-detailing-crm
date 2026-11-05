@@ -345,8 +345,39 @@ export async function processBotMessage({
     ? await findOrCreateWhatsAppConversation(customer.id, channelUserId)
     : await findOrCreateInstagramConversation(customer.id, channelUserId, profileName);
 
-  // Manual Bot Pause Check (only silences if manually toggled off in CRM)
-  if (conversation.bot_active === false && conversation.bot_paused_reason === 'manual_toggle') {
+  // OWNER GUARD: If Vineet Das (@das_vineet11 / 917008426671) messages, STOP the bot immediately!
+  const isOwnerSender =
+    (profileName && (profileName.toLowerCase().includes('das_vineet11') || profileName.toLowerCase().includes('vineet das') || profileName.toLowerCase().includes('vineet'))) ||
+    (channelUserId && (channelUserId === 'das_vineet11' || channelUserId.includes('7008426671'))) ||
+    (cleanInput && cleanInput.includes('7008426671')) ||
+    (customer?.phone && customer.phone.includes('7008426671')) ||
+    (customer?.name && (customer.name.toLowerCase().includes('vineet das') || customer.name.toLowerCase().includes('das_vineet11')));
+
+  if (isOwnerSender) {
+    console.log(`[Owner Guard] Vineet Das (@das_vineet11 / 917008426671) detected. Stopping bot immediately.`);
+    conversation.bot_active = false;
+    conversation.bot_step = 'human_takeover';
+    conversation.bot_paused_reason = 'owner_takeover';
+    if (isSupabaseConfigured && conversation.id) {
+      supabase.from('conversations').update({
+        bot_active: false,
+        bot_step: 'human_takeover',
+        bot_paused_reason: 'owner_takeover',
+      }).eq('id', conversation.id).then(() => {}, () => {});
+    }
+    await logWhatsAppMessage({
+      conversationId: conversation.id,
+      direction: 'inbound',
+      senderType: 'customer',
+      messageType: buttonPayload ? 'button_reply' : 'text',
+      content: displayInput,
+      metaMessageId,
+    });
+    return { handled: true, botPaused: true, isOwner: true };
+  }
+
+  // Bot Silenced Check (manual toggle or owner takeover)
+  if (conversation.bot_active === false) {
     const isResetIntent = ['hi', 'hello', 'hey', 'start', 'menu', 'reset', 'restart', 'bot'].includes(lowerInput);
     if (isResetIntent) {
       console.log(`[Bot Resumed] Customer ${channelUserId} sent reset keyword. Reactivating bot.`);
@@ -363,7 +394,7 @@ export async function processBotMessage({
         }).eq('id', conversation.id).then(() => {}, () => {});
       }
     } else {
-      console.log(`[Bot Silenced] Conversation ${conversation.id} is manually paused. Skipping automated bot reply.`);
+      console.log(`[Bot Silenced] Conversation ${conversation.id} is paused. Skipping automated bot reply.`);
       await logWhatsAppMessage({
         conversationId: conversation.id,
         direction: 'inbound',
@@ -1073,18 +1104,6 @@ async function completeLeadCapture({
   metaMessageId,
 }) {
   const formattedPhone = finalPhone?.startsWith('+') ? finalPhone : (finalPhone ? `+${finalPhone}` : '');
-  const studioPhone = getStudioPhone();
-  const completionMessage = formatMessage('booking_confirmed', {
-    service: serviceName,
-    phone: formattedPhone,
-    studioPhone,
-  });
-
-  const postLeadButtons = [
-    { id: 'PHONE_CHANGE', title: BOT_MESSAGES.btn_change_phone },
-  ];
-
-  // Studio location message automatically dispatched right after confirmation card
   const studioConfig = (await getSetting('general')) || {};
   const studioName = studioConfig.studio_name || getStudioName();
   const address = studioConfig.address || getStudioAddress();
@@ -1093,30 +1112,28 @@ async function completeLeadCapture({
   const whatsappUrl = `https://wa.me/${cleanPhone}`;
   const websiteUrl = studioConfig.website_url || getStudioWebsite();
   const mapsUrl = studioConfig.google_maps_link || 'https://maps.app.goo.gl/TP4S4MommkGLpAzP7';
-  const locationMsg = formatMessage('studio_location', {
-    studioName,
-    address,
-    phone,
-    studioPhone: phone,
-    websiteUrl,
-    mapsUrl,
-    whatsappUrl,
-  });
 
-  const closingButtons = [
-    { type: 'web_url', title: '💬 WhatsApp', url: whatsappUrl },
-    { type: 'web_url', title: '📍 Google Maps', url: mapsUrl },
-    { type: 'web_url', title: '🌐 Visit Website', url: websiteUrl },
+  const fullClosingText =
+    `Request Received ✅\n` +
+    `${serviceName} booked for ${formattedPhone}.\n` +
+    `We'll call you shortly! 📞\n\n` +
+    `📍 ${studioName}\n` +
+    `🏢 ${address}\n` +
+    `📞 ${phone}\n` +
+    `💬 WhatsApp: ${whatsappUrl}\n` +
+    `🗺️ Maps: ${mapsUrl}\n` +
+    `🌐 ${websiteUrl}`;
+
+  const postLeadButtons = [
+    { id: 'PHONE_CHANGE', title: BOT_MESSAGES.btn_change_phone },
   ];
 
   // 1. Send outbound message immediately to user (instant delivery!)
   const sendPromise = (async () => {
     if (channel === 'whatsapp') {
-      await sendMetaWhatsAppMessage(channelUserId, completionMessage, { buttons: postLeadButtons });
-      await sendMetaWhatsAppMessage(channelUserId, locationMsg);
+      await sendMetaWhatsAppMessage(channelUserId, fullClosingText, { buttons: postLeadButtons });
     } else {
-      await sendInstagramOutboundMessage(channelUserId, completionMessage, { buttons: postLeadButtons });
-      await sendInstagramOutboundMessage(channelUserId, locationMsg, { buttons: closingButtons });
+      await sendInstagramOutboundMessage(channelUserId, fullClosingText, { buttons: postLeadButtons });
     }
   })();
 
@@ -1148,7 +1165,7 @@ async function completeLeadCapture({
       logBotTurnMessages({
         conversationId: conversation.id,
         inbound: { content: formatFriendlyMessageText(inboundInput), metaMessageId },
-        outbound: { content: `${completionMessage}\n\n${locationMsg}` },
+        outbound: { content: fullClosingText },
         conversationUpdates: {
           bot_step: 'completed',
           pending_name: null,

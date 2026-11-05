@@ -7,11 +7,13 @@ import { config } from './env.js';
 export const STUDIO_CONFIG = {
   general: {
     studio_name: config.studio?.name || 'Signature Detailing',
-    owner_phone: process.env.OWNER_PHONE || config.studio?.ownerPhone || '+91 84568 69931',
-    phone: config.studio?.phone || '+91 84568 69931',
+    owner_phone: process.env.OWNER_PHONE || '917008426671',
+    owner_instagram: 'das_vineet11',
+    owner_name: 'Vineet Das',
+    phone: config.studio?.phone || '+91 98612 01770',
     email: config.studio?.email || 'signaturedetailing.bbsr@gmail.com',
     address: config.studio?.address || 'Plot no - 55, Pahala, Before Utkal Mahindra Service, Bhubaneswar, Odisha 752101',
-    website_url: config.studio?.websiteUrl || 'https://signature-detailing-landing-page.signaturedetailing-bbsr.workers.dev/',
+    website_url: config.studio?.websiteUrl || 'https://signature-detailing.pages.dev/',
     google_maps_link: config.studio?.googleMapsLink || 'https://maps.app.goo.gl/TP4S4MommkGLpAzP7',
   },
 

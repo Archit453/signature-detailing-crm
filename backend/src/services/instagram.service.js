@@ -130,7 +130,7 @@ export async function sendInstagramOutboundMessage(recipientId, text, options = 
       quick_replies: options.buttons.slice(0, 13).map((b) => ({
         content_type: 'text',
         title: String(b.title || '').slice(0, 20),
-        payload: String(b.payload || b.id || ''),
+        payload: String(b.payload || b.id || 'BUTTON_CLICK'),
       })),
     };
   } else if (Array.isArray(options.quick_replies) && options.quick_replies.length > 0) {

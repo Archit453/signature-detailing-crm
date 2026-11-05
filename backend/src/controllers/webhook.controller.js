@@ -218,8 +218,10 @@ export async function handleInstagramWebhook(req, res) {
                 content: outboundText,
                 metaMessageId: event.message?.mid || `echo-ig-${Date.now()}`,
               });
-              // 3. Keep bot active even when agent messages from Instagram app
+              // Stop bot for this customer since owner/staff is replying directly from Instagram app
               await updateConversationState(conversation.id, {
+                bot_active: false,
+                bot_paused_reason: 'owner_takeover',
                 bot_step: 'human_takeover',
               });
             }
@@ -241,11 +243,37 @@ export async function handleInstagramWebhook(req, res) {
           }
 
           let profileName = null;
+          let profileUsername = null;
           if (senderId && /^\d+$/.test(senderId)) {
             try {
               const profile = await getInstagramUserProfile(senderId);
               if (profile?.displayName) profileName = profile.displayName;
+              if (profile?.username) profileUsername = profile.username;
             } catch (pErr) {}
+          }
+
+          const isOwnerSender =
+            (profileUsername && (profileUsername.toLowerCase() === 'das_vineet11' || profileUsername.toLowerCase().includes('vineet'))) ||
+            (profileName && (profileName.toLowerCase().includes('das_vineet11') || profileName.toLowerCase().includes('vineet das')));
+
+          if (isOwnerSender) {
+            console.log(`[Owner Guard] Vineet Das (@${profileUsername || 'das_vineet11'}) messaged. Stopping bot.`);
+            const customer = await findOrCreateCustomer({ instagramId: senderId, name: 'Vineet Das (Owner)' });
+            const conversation = await findOrCreateInstagramConversation(customer.id, senderId, 'Vineet Das (@das_vineet11)');
+            await updateConversationState(conversation.id, {
+              bot_active: false,
+              bot_paused_reason: 'owner_takeover',
+              bot_step: 'human_takeover',
+            });
+            await logWhatsAppMessage({
+              conversationId: conversation.id,
+              direction: 'inbound',
+              senderType: 'customer',
+              messageType: 'text',
+              content: rawText,
+              metaMessageId,
+            });
+            continue;
           }
 
           if (rawText || buttonPayload) {

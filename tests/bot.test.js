@@ -159,6 +159,17 @@ async function runTests() {
   console.assert(commentTestRes.private_dm_sent === true, 'Should send private DM to commenter');
   console.log('✓ Test 5: Comment "All set" by @arc___hit received exact reply: "Hi @arc___hit! Check your DM 📩"');
 
+  console.log('\n--- 6. Testing Owner Guard: Vineet Das (@das_vineet11) Silences Bot ---');
+  const ownerRes = await processBotMessage({
+    channel: 'instagram',
+    channelUserId: 'das_vineet11',
+    profileName: 'Vineet Das (@das_vineet11)',
+    rawText: 'Hello test message from owner',
+  });
+  console.assert(ownerRes.botPaused === true, 'Bot should immediately stop when Vineet Das messages');
+  console.assert(ownerRes.isOwner === true, 'Should recognize sender as owner Vineet Das');
+  console.log('✓ Test 6: Vineet Das (@das_vineet11) message successfully stopped and silenced the bot');
+
   console.log('\n========================================');
   console.log('ALL BOT & VALIDATION TESTS PASSED! 🎉');
   console.log('========================================');
