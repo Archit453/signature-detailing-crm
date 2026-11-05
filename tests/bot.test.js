@@ -81,7 +81,12 @@ async function runTests() {
   });
   console.assert(igRes4.step === 'completed', 'IG should complete lead qualification');
   console.assert(igRes4.lead && igRes4.lead.status === 'new', 'Lead should be registered in CRM');
-  console.log('✓ IG Step 4: Mobile & vehicle captured, lead confirmed in CRM:', igRes4.lead.service_name);
+  console.assert(
+    igRes4.lead.customer_phone === '+919861201770' || igRes4.lead.customer?.phone === '+919861201770',
+    `Lead phone should be captured in CRM, got ${igRes4.lead?.customer_phone || igRes4.lead?.customer?.phone}`
+  );
+  console.assert(igRes4.phone === '+919861201770', `Captured phone should be +919861201770, got ${igRes4.phone}`);
+  console.log('✓ IG Step 4: Mobile & vehicle captured, lead confirmed in CRM with phone:', igRes4.phone);
 
   console.log('\n--- 4. Testing Human Takeover Edge Cases & Closing Details ---');
   const takeoverUser = `ig_takeover_test_${Date.now()}`;

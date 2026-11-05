@@ -52,6 +52,15 @@ export async function findOrCreateCustomer({ name, phone, instagramId, instagram
       if (cleanName !== 'Customer' && cached.customer.name === 'Customer') {
         cached.customer.name = cleanName;
       }
+      if (cleanPhone && (!cached.customer.phone || cached.customer.phone !== cleanPhone)) {
+        cached.customer.phone = cleanPhone;
+      }
+      if (cleanIgId && !cached.customer.instagram_id) {
+        cached.customer.instagram_id = cleanIgId;
+      }
+      if (instagramUsername && !cached.customer.instagram_username) {
+        cached.customer.instagram_username = instagramUsername;
+      }
       return cached.customer;
     }
   }
@@ -120,6 +129,12 @@ export async function findOrCreateCustomer({ name, phone, instagramId, instagram
     const matched = matchedRows?.[0] || null;
 
     if (matched) {
+      if (cleanPhone && (!matched.customer_phone || matched.customer_phone !== cleanPhone)) {
+        supabase.from('leads').update({
+          customer_phone: cleanPhone,
+          customer_name: cleanName !== 'Customer' ? cleanName : matched.customer_name,
+        }).eq('id', matched.id).then(() => {}, () => {});
+      }
       const custProfile = {
         id: matched.id,
         name: (cleanName !== 'Customer' ? cleanName : matched.customer_name) || 'Customer',
@@ -173,7 +188,7 @@ export async function findOrCreateCustomer({ name, phone, instagramId, instagram
   if (existing) {
     const updates = {};
     if (cleanName !== 'Customer' && existing.name === 'Customer') updates.name = cleanName;
-    if (cleanPhone && !existing.phone) updates.phone = cleanPhone;
+    if (cleanPhone && (!existing.phone || existing.phone !== cleanPhone)) updates.phone = cleanPhone;
     if (cleanIgId && !existing.instagram_id) updates.instagram_id = cleanIgId;
     if (instagramUsername && !existing.instagram_username) updates.instagram_username = instagramUsername;
 

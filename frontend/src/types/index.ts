@@ -38,6 +38,11 @@ export type LeadStatus = 'new' | 'contacted' | 'scheduled' | 'in_progress' | 'co
 export interface Lead {
   id: string;
   customer_id: string;
+  customer_name?: string | null;
+  customer_phone?: string | null;
+  instagram_id?: string | null;
+  instagram_username?: string | null;
+  phone?: string | null;
   vehicle_id?: string | null;
   service_id?: string | null;
   service_name: string;

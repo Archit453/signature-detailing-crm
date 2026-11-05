@@ -318,7 +318,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase();
         const matchesName = lead.customer?.name?.toLowerCase().includes(q);
-        const matchesPhone = lead.customer?.phone?.toLowerCase().includes(q);
+        const matchesPhone = (lead.customer?.phone || lead.customer_phone || (lead as any).phone || '').toLowerCase().includes(q);
         const matchesService = lead.service_name?.toLowerCase().includes(q);
         const matchesVehicle = `${lead.vehicle?.make || ''} ${lead.vehicle?.model || ''}`.toLowerCase().includes(q);
         if (!matchesName && !matchesPhone && !matchesService && !matchesVehicle) {
@@ -410,7 +410,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       return [
         escapeCSV(lead.id),
         escapeCSV(lead.customer?.name || ''),
-        escapePhoneCSV(lead.customer?.phone || ''),
+        escapePhoneCSV(lead.customer?.phone || lead.customer_phone || (lead as any).phone || ''),
         escapeCSV(lead.customer?.email || ''),
         escapeCSV(lead.customer?.instagram_username || ''),
         escapeCSV(lead.service_name || ''),
@@ -815,7 +815,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 const firstVehicle = lead.customer?.vehicles && lead.customer.vehicles.length > 0
                   ? lead.customer.vehicles[0]
                   : null;
-                const cleanPhone = (lead.customer?.phone || '').replace(/\D/g, '');
+                const cleanPhone = (lead.customer?.phone || lead.customer_phone || (lead as any).phone || '').replace(/\D/g, '');
 
                 return (
                   <div
@@ -890,9 +890,9 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                       {/* Quick Action Buttons */}
                       <div className="flex items-center space-x-1.5">
                         {/* Call */}
-                        {lead.customer?.phone && (
+                        {(lead.customer?.phone || lead.customer_phone) && (
                           <a
-                            href={`tel:${lead.customer.phone}`}
+                            href={`tel:${lead.customer?.phone || lead.customer_phone}`}
                             className={`w-9 h-9 rounded-xl ${isLight ? 'bg-slate-100 hover:bg-blue-50 hover:text-blue-600 border-slate-200 text-slate-700' : 'bg-white/[0.04] hover:bg-[#5E81F4]/20 hover:text-[#5E81F4] border-white/[0.06] text-zinc-300'} border flex items-center justify-center transition-colors`}
                             title="Call Customer"
                           >
@@ -1054,7 +1054,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                   ) : filteredLeads.length > 0 ? (
                     filteredLeads.map((lead) => {
                       const initials = getInitials(lead.customer?.name);
-                      const cleanPhone = (lead.customer?.phone || '').replace(/\D/g, '');
+                      const cleanPhone = (lead.customer?.phone || lead.customer_phone || (lead as any).phone || '').replace(/\D/g, '');
                       const firstVehicle = lead.customer?.vehicles && lead.customer.vehicles.length > 0
                         ? lead.customer.vehicles[0]
                         : null;
@@ -1103,13 +1103,13 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
                           {/* PHONE NUMBER */}
                           <td className={`py-4 px-5 text-sm font-medium ${isLight ? 'text-slate-700' : 'text-zinc-300'} whitespace-nowrap`}>
-                            {lead.customer?.phone ? (
+                            {(lead.customer?.phone || lead.customer_phone || (lead as any).phone) ? (
                               <a
-                                href={`tel:${lead.customer.phone}`}
+                                href={`tel:${lead.customer?.phone || lead.customer_phone || (lead as any).phone}`}
                                 onClick={(e) => e.stopPropagation()}
                                 className={`${isLight ? 'text-slate-800 hover:text-blue-600' : 'text-zinc-300 hover:text-[#5E81F4]'} transition-colors font-mono`}
                               >
-                                {formatDisplayPhone(lead.customer.phone)}
+                                {formatDisplayPhone(lead.customer?.phone || lead.customer_phone || (lead as any).phone)}
                               </a>
                             ) : (
                               <span className={isLight ? 'text-slate-400' : 'text-[#8E92A0]'}>—</span>
@@ -1231,9 +1231,9 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                               )}
 
                               {/* Phone Call Link */}
-                              {lead.customer?.phone && (
+                              {(lead.customer?.phone || lead.customer_phone) && (
                                 <a
-                                  href={`tel:${lead.customer.phone}`}
+                                  href={`tel:${lead.customer?.phone || lead.customer_phone}`}
                                   className={`w-8 h-8 rounded-xl ${isLight ? 'bg-slate-100 hover:bg-blue-50 hover:text-blue-700 border-slate-200 text-slate-600' : 'bg-white/[0.04] hover:bg-[#5E81F4]/20 hover:text-[#5E81F4] border-white/[0.06] hover:border-[#5E81F4]/30 text-[#8E92A0]'} border flex items-center justify-center transition-colors`}
                                   title="Call Client"
                                 >
@@ -1476,9 +1476,9 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                           </div>
 
                           <div className="flex items-center space-x-1.5">
-                            {lead.customer?.phone && (
+                            {(lead.customer?.phone || lead.customer_phone) && (
                               <a
-                                href={`tel:${lead.customer.phone}`}
+                                href={`tel:${lead.customer?.phone || lead.customer_phone}`}
                                 onClick={(e) => e.stopPropagation()}
                                 className={`w-9 h-9 rounded-xl ${
                                   isLight ? 'bg-slate-100 hover:bg-blue-50 text-slate-700 hover:text-blue-600 border-slate-200' : 'bg-white/[0.04] hover:bg-[#5E81F4]/20 hover:text-[#5E81F4] border-white/[0.06] text-zinc-300'
@@ -1593,9 +1593,9 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                                 <span className={`font-semibold text-xs ${isLight ? 'text-slate-900' : 'text-white'} truncate`}>
                                   👤 {lead.customer?.name || 'Walk-in Customer'}
                                 </span>
-                                {lead.customer?.phone && (
+                                {(lead.customer?.phone || lead.customer_phone) && (
                                   <span className={`text-[11px] ${isLight ? 'text-slate-500' : 'text-zinc-400'} font-mono`}>
-                                    {formatDisplayPhone(lead.customer.phone)}
+                                    {formatDisplayPhone(lead.customer?.phone || lead.customer_phone)}
                                   </span>
                                 )}
                               </div>
@@ -1675,10 +1675,10 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                                 {formatExactTime(lead.created_at)}
                               </span>
                               <div className="flex items-center space-x-1.5">
-                                {lead.customer?.phone && (
+                                {(lead.customer?.phone || lead.customer_phone) && (
                                   <>
                                     <a
-                                      href={`https://wa.me/${lead.customer.phone.replace(/\D/g, '')}`}
+                                      href={`https://wa.me/${(lead.customer?.phone || lead.customer_phone || '').replace(/\D/g, '')}`}
                                       target="_blank"
                                       rel="noopener noreferrer"
                                       onClick={(e) => e.stopPropagation()}
@@ -1688,7 +1688,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                                       <WhatsAppIcon className="w-3.5 h-3.5 text-[#25D366]" />
                                     </a>
                                     <a
-                                      href={`tel:${lead.customer.phone}`}
+                                      href={`tel:${lead.customer?.phone || lead.customer_phone}`}
                                       onClick={(e) => e.stopPropagation()}
                                       className={`p-1.5 rounded-lg ${isLight ? 'hover:bg-slate-100 text-slate-500 hover:text-blue-600' : 'hover:bg-white/10 text-[#8E92A0] hover:text-[#5E81F4]'} transition-colors`}
                                       title="Call Customer"

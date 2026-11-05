@@ -20,22 +20,41 @@ export function formatLeadRow(row) {
   const vehicles = vehicleObj ? [vehicleObj] : (row.customer?.vehicles || []);
   const activities = Array.isArray(row.activities) ? row.activities : [];
 
-  const customerObj = row.customer || {
-    id: row.customer_id || row.id,
-    name: row.customer_name || 'Customer',
-    phone: row.customer_phone || null,
-    instagram_id: row.instagram_id || null,
-    instagram_username: row.instagram_username || null,
-    email: row.email || null,
-    vehicles: vehicles,
-    activities: activities,
-    notes: row.notes || null,
-    created_at: row.created_at,
-  };
+  const phoneValue = row.customer?.phone || row.customer_phone || row.phone || null;
+  const nameValue = (row.customer?.name && row.customer.name !== 'Customer')
+    ? row.customer.name
+    : (row.customer_name || row.customer?.name || 'Customer');
+  const igIdValue = row.customer?.instagram_id || row.instagram_id || null;
+  const igUserValue = row.customer?.instagram_username || row.instagram_username || null;
+
+  const customerObj = row.customer
+    ? {
+        ...row.customer,
+        name: nameValue,
+        phone: phoneValue,
+        instagram_id: igIdValue,
+        instagram_username: igUserValue,
+        vehicles: vehicles,
+        activities: activities,
+      }
+    : {
+        id: row.customer_id || row.id,
+        name: nameValue,
+        phone: phoneValue,
+        instagram_id: igIdValue,
+        instagram_username: igUserValue,
+        email: row.email || null,
+        vehicles: vehicles,
+        activities: activities,
+        notes: row.notes || null,
+        created_at: row.created_at,
+      };
 
   return {
     ...row,
     customer_id: row.customer_id || row.id,
+    customer_name: nameValue,
+    customer_phone: phoneValue,
     customer: customerObj,
     vehicle: vehicleObj,
     vehicles: vehicles,
@@ -283,6 +302,18 @@ export async function createLead({
       if (serviceName && !existingOpenLead.service_name?.toLowerCase().includes(serviceName.toLowerCase())) {
         existingOpenLead.service_name = `${existingOpenLead.service_name}, ${serviceName}`;
       }
+      if (finalPhone && (!existingOpenLead.customer_phone || existingOpenLead.customer_phone !== finalPhone)) {
+        existingOpenLead.customer_phone = finalPhone;
+      }
+      if (finalName && finalName !== 'Customer' && (existingOpenLead.customer_name === 'Customer' || !existingOpenLead.customer_name)) {
+        existingOpenLead.customer_name = finalName;
+      }
+      if (finalIgId && !existingOpenLead.instagram_id) {
+        existingOpenLead.instagram_id = finalIgId;
+      }
+      if (finalIgUser && !existingOpenLead.instagram_username) {
+        existingOpenLead.instagram_username = finalIgUser;
+      }
       const reinquiryNote = `[Additional inquiry via ${source.toUpperCase()}: ${serviceName}${notes ? ' - ' + notes : ''}]`;
       existingOpenLead.notes = existingOpenLead.notes
         ? `${existingOpenLead.notes} | ${reinquiryNote}`
@@ -370,6 +401,18 @@ export async function createLead({
         notes: updatedNotes,
         updated_at: new Date().toISOString(),
       };
+      if (finalPhone && (!existing.customer_phone || existing.customer_phone !== finalPhone)) {
+        updatePayload.customer_phone = finalPhone;
+      }
+      if (finalName && finalName !== 'Customer' && (existing.customer_name === 'Customer' || !existing.customer_name)) {
+        updatePayload.customer_name = finalName;
+      }
+      if (finalIgId && !existing.instagram_id) {
+        updatePayload.instagram_id = finalIgId;
+      }
+      if (finalIgUser && !existing.instagram_username) {
+        updatePayload.instagram_username = finalIgUser;
+      }
       if (cleanDate) updatePayload.scheduled_date = cleanDate;
       if (Object.keys(vehicleObj).length > 0) {
         updatePayload.vehicle_info = { ...(existing.vehicle_info || {}), ...vehicleObj };
@@ -513,6 +556,14 @@ export async function createLead({
       notes: updatedNotes,
       updated_at: new Date().toISOString(),
     };
+    if (finalPhone && existing.customer_id) {
+      updateCustomer(existing.customer_id, {
+        phone: finalPhone,
+        name: finalName !== 'Customer' ? finalName : undefined,
+        instagram_id: finalIgId || undefined,
+        instagram_username: finalIgUser || undefined,
+      }).catch(() => {});
+    }
     if (vehicleId) updatePayload.vehicle_id = vehicleId;
     if (cleanDate) updatePayload.scheduled_date = cleanDate;
 

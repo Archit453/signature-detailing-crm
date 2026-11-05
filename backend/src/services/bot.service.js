@@ -1162,6 +1162,8 @@ async function completeLeadCapture({
     bot_step: 'completed',
     pending_name: null,
     pending_service: null,
+    customer_phone: finalPhone,
+    customer_name: finalName,
   });
 
   // 2. Parallel background database persistence:
@@ -1170,6 +1172,7 @@ async function completeLeadCapture({
       name: finalName,
       phone: finalPhone,
       instagramId: channel === 'instagram' ? channelUserId : null,
+      instagramUsername: conversation.customer_username || null,
     });
 
     const [lead] = await Promise.all([
@@ -1181,6 +1184,10 @@ async function completeLeadCapture({
         notes: `Qualified automatically via ${channel.toUpperCase()} Bot.`,
         vehicle: vehicleInfo,
         customer,
+        customerName: finalName,
+        customerPhone: finalPhone,
+        instagramId: channel === 'instagram' ? channelUserId : null,
+        instagramUsername: conversation.customer_username || null,
       }),
       logBotTurnMessages({
         conversationId: conversation.id,
@@ -1190,6 +1197,8 @@ async function completeLeadCapture({
           bot_step: 'completed',
           pending_name: null,
           pending_service: null,
+          customer_phone: finalPhone,
+          customer_name: finalName,
         },
       }),
     ]);
