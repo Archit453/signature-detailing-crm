@@ -289,51 +289,6 @@ export async function diagnoseInstagramIntegration(req, res) {
     results.tests['facebook_original_page'] = { status: r1b.status, data: await r1b.json() };
   } catch (e) { results.tests['facebook_original_page'] = { error: e.message }; }
 
-  // 1c. Test dispatch via 1044542855126226/messages
-  try {
-    const r1c = await fetch(`https://graph.facebook.com/v21.0/1044542855126226/messages?access_token=${encodeURIComponent(token)}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        recipient: { id: testRecipient },
-        message: { text: 'Test via 1044542855126226' }
-      })
-    });
-    results.tests['dispatch_via_1044542855126226'] = { status: r1c.status, data: await r1c.json() };
-  } catch (e) { results.tests['dispatch_via_1044542855126226'] = { error: e.message }; }
-
-  // 1d. Test dispatch via graph.instagram.com/v21.0/me/messages
-  try {
-    const r1d = await fetch(`https://graph.instagram.com/v21.0/me/messages?access_token=${encodeURIComponent(token)}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        recipient: { id: testRecipient },
-        message: { text: 'Test via graph.instagram.com' }
-      })
-    });
-    results.tests['dispatch_via_graph_instagram'] = { status: r1d.status, data: await r1d.json() };
-  } catch (e) { results.tests['dispatch_via_graph_instagram'] = { error: e.message }; }
-
-  // 1e. Test dispatch via {pageId}/messages
-  try {
-    const r1e = await fetch(`https://graph.facebook.com/v21.0/${pageId}/messages?access_token=${encodeURIComponent(token)}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        recipient: { id: testRecipient },
-        message: { text: `Test via ${pageId}` }
-      })
-    });
-    results.tests[`dispatch_via_${pageId}`] = { status: r1e.status, data: await r1e.json() };
-  } catch (e) { results.tests[`dispatch_via_${pageId}`] = { error: e.message }; }
-
-  // 1f. Inspect debug_token
-  try {
-    const r1f = await fetch(`https://graph.facebook.com/debug_token?input_token=${encodeURIComponent(token)}&access_token=${encodeURIComponent(token)}`);
-    results.tests['debug_token'] = { status: r1f.status, data: await r1f.json() };
-  } catch (e) { results.tests['debug_token'] = { error: e.message }; }
-
   // 2. Check graph.facebook.com/{pageId}
   try {
     const r2 = await fetch(`https://graph.facebook.com/v21.0/${pageId}?fields=id,name,username,instagram_business_account&access_token=${encodeURIComponent(token)}`);
@@ -345,17 +300,6 @@ export async function diagnoseInstagramIntegration(req, res) {
     const r3 = await fetch(`https://graph.facebook.com/v21.0/me/accounts?fields=id,name,instagram_business_account{id,username}&access_token=${encodeURIComponent(token)}`);
     results.tests['facebook_me_accounts'] = { status: r3.status, data: await r3.json() };
   } catch (e) { results.tests['facebook_me_accounts'] = { error: e.message }; }
-
-  // 4. Test outbound dispatch (only if ?test_send=true is explicitly passed)
-  if (req.query.test_send === 'true') {
-    try {
-      const { sendInstagramOutboundMessage } = await import('../services/instagram.service.js');
-      const sendResult = await sendInstagramOutboundMessage(testRecipient, 'Diagnostic test from Signature Detailing', { accountId: pageId });
-      results.tests['outbound_dispatch'] = sendResult;
-    } catch (e) { results.tests['outbound_dispatch'] = { error: e.message }; }
-  } else {
-    results.tests['outbound_dispatch'] = { status: 'skipped', note: 'Pass ?test_send=true to execute live dispatch' };
-  }
 
   return successResponse(res, results, 'Instagram diagnostic completed');
 }
