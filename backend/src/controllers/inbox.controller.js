@@ -41,7 +41,7 @@ export async function listConversations(req, res) {
     return successResponse(res, [], 'Inbox online');
   }
 
-  // 1. Fetch conversations (filtering out synthetic test records)
+  // 1. Fetch conversations (filtering out synthetic test records and personal chats)
   let query = supabase
     .from('conversations')
     .select('*, lead:leads(*)')
@@ -52,6 +52,11 @@ export async function listConversations(req, res) {
     .not('channel_user_id', 'ilike', 'tester_%')
     .not('channel_user_id', 'ilike', 'local_debug%')
     .not('channel_user_id', 'eq', '178414999999999')
+    .not('channel_user_id', 'eq', '1063614602424187')
+    .not('channel_user_id', 'ilike', '%arc%')
+    .not('customer_name', 'ilike', '%arc%')
+    .not('customer_name', 'ilike', '%archit%')
+    .not('customer_phone', 'ilike', '%7008457284%')
     .order('last_message_at', { ascending: false })
     .limit(100);
 
@@ -71,6 +76,11 @@ export async function listConversations(req, res) {
       .not('channel_user_id', 'ilike', 'tester_%')
       .not('channel_user_id', 'ilike', 'local_debug%')
       .not('channel_user_id', 'eq', '178414999999999')
+      .not('channel_user_id', 'eq', '1063614602424187')
+      .not('channel_user_id', 'ilike', '%arc%')
+      .not('customer_name', 'ilike', '%arc%')
+      .not('customer_name', 'ilike', '%archit%')
+      .not('customer_phone', 'ilike', '%7008457284%')
       .order('last_message_at', { ascending: false })
       .limit(100);
     if (fallback.error) throw new ApiError(500, `Failed to load conversations: ${fallback.error.message}`);
@@ -373,6 +383,36 @@ export async function toggleBotState(req, res) {
 }
 
 export async function getCommentsFeed(req, res) {
-  const comments = await getRecentInstagramComments(50);
+  const rawComments = await getRecentInstagramComments(50);
+  const comments = (rawComments || []).filter((c) => {
+    const u = String(c.from_username || '').toLowerCase();
+    const t = String(c.text || '').toLowerCase();
+    return !u.includes('arc') && !u.includes('test') && !t.includes('test');
+  });
   return successResponse(res, comments);
+}
+
+export async function deleteConversation(req, res) {
+  const { id } = req.params;
+  if (!id) throw new ApiError(400, 'Conversation ID is required');
+
+  if (!isSupabaseConfigured) {
+    return successResponse(res, { id }, 'Simulated delete');
+  }
+
+  let query = supabase.from('conversations').delete();
+  if (id === 'purge-archit' || id === 'purge-personal') {
+    query = query.or(
+      'customer_name.ilike.%archit%,customer_name.ilike.%arc____hit%,customer_name.ilike.%arc___hit%,channel_user_id.eq.1063614602424187,customer_phone.ilike.%7008457284%'
+    );
+  } else {
+    query = query.eq('id', id);
+  }
+
+  const { data, error } = await query.select();
+  if (error) {
+    throw new ApiError(500, `Failed to delete conversation: ${error.message}`);
+  }
+
+  return successResponse(res, { deleted: data }, 'Conversation deleted successfully');
 }
