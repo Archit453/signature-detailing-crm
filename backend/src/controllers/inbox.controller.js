@@ -41,22 +41,10 @@ export async function listConversations(req, res) {
     return successResponse(res, [], 'Inbox online');
   }
 
-  // 1. Fetch conversations (filtering out synthetic test records and personal chats)
+  // 1. Fetch conversations
   let query = supabase
     .from('conversations')
     .select('*, lead:leads(*)')
-    .not('channel_user_id', 'ilike', 'unit_test%')
-    .not('channel_user_id', 'ilike', 'takeover_test%')
-    .not('channel_user_id', 'ilike', 'fallback_test%')
-    .not('channel_user_id', 'ilike', 'test_%')
-    .not('channel_user_id', 'ilike', 'tester_%')
-    .not('channel_user_id', 'ilike', 'local_debug%')
-    .not('channel_user_id', 'eq', '178414999999999')
-    .not('channel_user_id', 'eq', '1063614602424187')
-    .not('channel_user_id', 'ilike', '%arc%')
-    .not('customer_name', 'ilike', '%arc%')
-    .not('customer_name', 'ilike', '%archit%')
-    .not('customer_phone', 'ilike', '%7008457284%')
     .order('last_message_at', { ascending: false })
     .limit(100);
 
@@ -69,18 +57,6 @@ export async function listConversations(req, res) {
     const fallback = await supabase
       .from('conversations')
       .select('*')
-      .not('channel_user_id', 'ilike', 'unit_test%')
-      .not('channel_user_id', 'ilike', 'takeover_test%')
-      .not('channel_user_id', 'ilike', 'fallback_test%')
-      .not('channel_user_id', 'ilike', 'test_%')
-      .not('channel_user_id', 'ilike', 'tester_%')
-      .not('channel_user_id', 'ilike', 'local_debug%')
-      .not('channel_user_id', 'eq', '178414999999999')
-      .not('channel_user_id', 'eq', '1063614602424187')
-      .not('channel_user_id', 'ilike', '%arc%')
-      .not('customer_name', 'ilike', '%arc%')
-      .not('customer_name', 'ilike', '%archit%')
-      .not('customer_phone', 'ilike', '%7008457284%')
       .order('last_message_at', { ascending: false })
       .limit(100);
     if (fallback.error) throw new ApiError(500, `Failed to load conversations: ${fallback.error.message}`);
@@ -383,12 +359,7 @@ export async function toggleBotState(req, res) {
 }
 
 export async function getCommentsFeed(req, res) {
-  const rawComments = await getRecentInstagramComments(50);
-  const comments = (rawComments || []).filter((c) => {
-    const u = String(c.from_username || '').toLowerCase();
-    const t = String(c.text || '').toLowerCase();
-    return !u.includes('arc') && !u.includes('test') && !t.includes('test');
-  });
+  const comments = await getRecentInstagramComments(50);
   return successResponse(res, comments);
 }
 
@@ -400,16 +371,12 @@ export async function deleteConversation(req, res) {
     return successResponse(res, { id }, 'Simulated delete');
   }
 
-  let query = supabase.from('conversations').delete();
-  if (id === 'purge-archit' || id === 'purge-personal') {
-    query = query.or(
-      'customer_name.ilike.%archit%,customer_name.ilike.%arc____hit%,customer_name.ilike.%arc___hit%,channel_user_id.eq.1063614602424187,customer_phone.ilike.%7008457284%'
-    );
-  } else {
-    query = query.eq('id', id);
-  }
+  const { data, error } = await supabase
+    .from('conversations')
+    .delete()
+    .eq('id', id)
+    .select();
 
-  const { data, error } = await query.select();
   if (error) {
     throw new ApiError(500, `Failed to delete conversation: ${error.message}`);
   }
