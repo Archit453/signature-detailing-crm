@@ -41,10 +41,17 @@ export async function listConversations(req, res) {
     return successResponse(res, [], 'Inbox online');
   }
 
-  // 1. Fetch conversations
+  // 1. Fetch conversations (filtering out synthetic test records)
   let query = supabase
     .from('conversations')
     .select('*, lead:leads(*)')
+    .not('channel_user_id', 'ilike', 'unit_test%')
+    .not('channel_user_id', 'ilike', 'takeover_test%')
+    .not('channel_user_id', 'ilike', 'fallback_test%')
+    .not('channel_user_id', 'ilike', 'test_%')
+    .not('channel_user_id', 'ilike', 'tester_%')
+    .not('channel_user_id', 'ilike', 'local_debug%')
+    .not('channel_user_id', 'eq', '178414999999999')
     .order('last_message_at', { ascending: false })
     .limit(100);
 
@@ -57,6 +64,13 @@ export async function listConversations(req, res) {
     const fallback = await supabase
       .from('conversations')
       .select('*')
+      .not('channel_user_id', 'ilike', 'unit_test%')
+      .not('channel_user_id', 'ilike', 'takeover_test%')
+      .not('channel_user_id', 'ilike', 'fallback_test%')
+      .not('channel_user_id', 'ilike', 'test_%')
+      .not('channel_user_id', 'ilike', 'tester_%')
+      .not('channel_user_id', 'ilike', 'local_debug%')
+      .not('channel_user_id', 'eq', '178414999999999')
       .order('last_message_at', { ascending: false })
       .limit(100);
     if (fallback.error) throw new ApiError(500, `Failed to load conversations: ${fallback.error.message}`);

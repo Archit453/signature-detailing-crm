@@ -178,8 +178,28 @@ export async function handleInstagramWebhook(req, res) {
   }
 
   try {
+    const integrations = await getSetting('integrations');
+    const configuredPageId = String(
+      integrations?.instagram?.page_id ||
+      integrations?.instagram?.instagram_business_account_id ||
+      config.instagram.pageId ||
+      ''
+    ).trim();
+
     for (const entry of body.entry || []) {
-      const entryAccountId = entry.id ? String(entry.id) : null;
+      const entryAccountId = entry.id ? String(entry.id).trim() : null;
+
+      // Strict account filtering: ignore webhooks from old or disconnected Instagram accounts
+      if (
+        configuredPageId &&
+        entryAccountId &&
+        config.nodeEnv !== 'test' &&
+        entryAccountId !== configuredPageId &&
+        entryAccountId !== String(config.instagram.pageId || '').trim()
+      ) {
+        console.warn(`[Instagram Webhook Ignored] Entry ID ${entryAccountId} does not match configured account (${configuredPageId}). Dropping event.`);
+        continue;
+      }
 
       // 1. Collect Direct Messages & Button Postbacks from entry.messaging & entry.changes
       const messagingEvents = [];

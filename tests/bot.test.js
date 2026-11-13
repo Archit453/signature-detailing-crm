@@ -174,6 +174,29 @@ async function runTests() {
   console.assert(ownerRes.isOwner === true, 'Should recognize sender as owner');
   console.log('✓ Test 6: Configured Owner (+91 70084 57284) message successfully stopped and silenced the bot');
 
+  // Clean up the simulated owner test message from Supabase to protect real conversations
+  try {
+    const { supabase, isSupabaseConfigured } = await import('../backend/src/config/supabase.js');
+    if (isSupabaseConfigured) {
+      const { data: conv } = await supabase.from('conversations').select('*').eq('channel_user_id', '917008457284').single();
+      if (conv?.recent_messages) {
+        const cleaned = conv.recent_messages.filter((m) => m.content !== 'Hello test message from owner');
+        const lastMsg = cleaned[cleaned.length - 1];
+        await supabase.from('conversations').update({
+          recent_messages: cleaned,
+          last_message_preview: lastMsg?.content || null,
+          last_message_at: lastMsg?.created_at || conv.created_at,
+          updated_at: lastMsg?.created_at || conv.created_at,
+        }).eq('id', conv.id);
+      }
+      // Clean up all synthetic unit test records
+      await supabase
+        .from('conversations')
+        .delete()
+        .or('channel_user_id.ilike.unit_test%,channel_user_id.ilike.takeover_test%,channel_user_id.ilike.fallback_test%,channel_user_id.ilike.test_%,channel_user_id.ilike.ig_unit_test%,channel_user_id.eq.178414999999999,channel_user_id.eq.919876543210');
+    }
+  } catch (cleanErr) {}
+
   console.log('\n--- 7. Testing Instagram Action Card & Owner WhatsApp URL ---');
   const { sendInstagramActionCard } = await import('../backend/src/services/instagram.service.js');
   const cardResult = await sendInstagramActionCard('test_card_recipient', {
